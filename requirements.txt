@@ -1,0 +1,11 @@
+fastapi==0.115.12
+uvicorn==0.34.0
+pydantic==2.10.6
+pandas==2.2.3
+numpy==2.2.4
+yfinance==0.2.61
+scikit-learn==1.6.1
+httpx==0.28.1
+duckduckgo-search==7.5.2
+python-dotenv==1.0.1
+pypdf==5.3.1
