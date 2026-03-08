@@ -25,9 +25,13 @@ class Settings:
     web_search_enabled: bool = os.getenv("WEB_SEARCH_ENABLED", "true").lower() == "true"
     web_search_max_results: int = int(os.getenv("WEB_SEARCH_MAX_RESULTS", "3"))
     kb_dir: str = os.getenv("KB_DIR", "app/data/knowledge_base")
+    kb_index_dir: str = os.getenv("KB_INDEX_DIR", "app/data/.kb_index")
     kb_chunk_size: int = int(os.getenv("KB_CHUNK_SIZE", "500"))
     kb_chunk_overlap: int = int(os.getenv("KB_CHUNK_OVERLAP", "80"))
     kb_max_chunks: int = int(os.getenv("KB_MAX_CHUNKS", "20000"))
+    external_api_max_attempts: int = int(os.getenv("EXTERNAL_API_MAX_ATTEMPTS", "3"))
+    external_api_backoff_ms: int = int(os.getenv("EXTERNAL_API_BACKOFF_MS", "250"))
+    event_large_move_threshold_pct: float = float(os.getenv("EVENT_LARGE_MOVE_THRESHOLD_PCT", "3.0"))
 
 
 @lru_cache

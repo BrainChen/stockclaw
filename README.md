@@ -1,127 +1,201 @@
 # Financial Asset QA System
+![系统截图](./screen_shot.png)
 
-基于大模型 + 行情数据 + 通用 RAG 的全栈金融资产问答系统（MVP）。
+基于 `FastAPI + React + 市场数据 + 检索增强生成（RAG）` 的金融问答系统。  
+项目支持两类问题：
 
-## 1. 项目能力
+- **资产行情问答**：围绕美股/港股代码，输出价格、涨跌、趋势与影响因素。
+- **金融知识问答**：基于本地知识库 + Web 检索生成带引用的回答。
 
-- 资产行情问答（核心）
-  - 动态股票解析（中文公司名可直接问，如“小米最近 7 天涨跌”）
-  - 7 日 / 30 日涨跌幅计算
-  - 14 日趋势分类（上涨 / 下跌 / 震荡）
-  - 结合新闻做“可能影响因素”分析
-- 金融知识问答（RAG）
-  - 通用知识库（支持 `.md/.txt/.json/.csv/.pdf`）
-  - 目录递归扫描 + 自动分块
-  - 混合检索（词级 TF-IDF + 字符级 TF-IDF）
-  - Web Search（DuckDuckGo）补充上下文
-- 结构化回答生成
-  - 明确区分“客观数据”与“分析描述”
-  - 优先使用检索/行情结果，降低幻觉
+---
 
-## 2. 技术栈
+## 1. 系统架构图
 
-- 前端：静态 HTML + JS（`app/static/index.html`）
-- 后端：FastAPI（`app/main.py`）
-- LLM：OpenRouter API（可选）
-- 行情：`yfinance`（Yahoo Finance）+ Stooq Fallback
-- 证券解析：东方财富 Suggest API + Yahoo Search + Web 兜底
-- 向量检索：`scikit-learn` TF-IDF + cosine similarity
+![系统架构图](./arch.png)
 
-## 3. 系统架构图
+---
 
-```mermaid
-flowchart LR
-    U[Web Frontend] --> API[FastAPI /api/chat]
-    API --> R[Query Router]
-    R -->|行情类| M[Market Service]
-    R -->|知识类| K[RAG Service]
-    M --> S[Symbol Resolver]
-    S --> E[Eastmoney Suggest API]
-    S --> YS[Yahoo Search API]
-    S --> WS[DuckDuckGo Fallback]
-    M --> YH[Yahoo Finance History]
-    M --> ST[Stooq Fallback]
-    K --> W[Web Search Service]
-    K --> KM[KB Manager]
-    KM --> KB[Local KB Files]
-    M --> LLM[LLM Service]
-    K --> LLM
-    LLM --> API
-    API --> U
+## 2. 技术选型说明
+
+### 后端
+
+- **FastAPI**：提供 `chat`、知识库检索、重建索引、文档预览等 API，路由清晰、类型约束完整。
+- **Pydantic v2**：统一请求/响应模型，前后端字段契约明确（如 `ChatResponse`、`SourceItem`）。
+- **httpx**：统一外部 HTTP 调用（符号解析、搜索、LLM）。
+- **Resilient HTTP Client**：对外部接口统一重试与指数退避（可通过环境变量调节）。
+
+### 行情与符号解析
+
+- **yfinance + pandas + numpy**：主行情来源与指标计算（7/14/30 日涨跌、波动率、趋势）。
+- **Stooq 回退**：Yahoo 异常/限流时自动降级，保证可用性。
+- **多源符号解析策略**：
+  - 显式代码正则识别；
+  - Eastmoney Suggest（主）；
+  - Yahoo Search（次）；
+  - DuckDuckGo（兜底）；
+  - Stooq `q/l` 可交易性校验。
+
+### 知识检索（RAG）
+
+- **文档支持**：`md/txt/json/csv/pdf`，递归扫描知识库目录。
+- **混合向量化**：词级 TF-IDF + 字符级 TF-IDF，兼顾英文 ticker 与中文术语。
+- **降维与检索**：`TruncatedSVD` + `FAISS(IndexFlatIP)`，用归一化向量实现余弦相似检索。
+- **索引持久化**：保存 FAISS 与向量器对象；通过语料签名（文件大小、mtime、参数）判定是否复用。
+
+### 前端
+
+- **React 18 + Vite**：单页应用，开发时通过 Vite 代理 `/api` 到后端。
+- **React Markdown + remark-gfm**：渲染结构化回答；引用格式 `[n]` 自动链接到来源。
+- **自绘 SVG 趋势图**：展示收盘价/成交量切换、悬浮读数、区间涨跌。
+
+---
+
+## 3. Prompt 设计思路
+
+### 3.1 资产问答 Prompt
+
+资产链路会先产出结构化客观数据，再交给 LLM 组织语言。核心约束：
+
+- **先结论后展开**：先回答用户指定周期（如近 7 天）或指定事件日（如 1 月 15 日）。
+- **强结构输出**：固定四段：
+  1) 直接结论  
+  2) 客观数据  
+  3) 可能影响因素（至少 4 条，覆盖财报/宏观/新闻/量价）  
+  4) 风险提示
+- **防幻觉约束**：不得预测未来、不得编造数据、引用必须使用 `[n]`。
+- **事件日增强**：当用户提及具体日期且使用“大涨/大跌”表述时，先判断单日涨跌是否达到约 `3%` 阈值。
+
+如果未配置 OpenRouter Key，系统会走**模板化兜底回答**，保证稳定可用。
+
+### 3.2 知识问答 Prompt
+
+- 输入内容为“编号后的检索片段”（本地 KB + Web）。
+- 约束“**只能基于检索材料回答**”，每个关键结论至少一个引用。
+- 输出结构：
+  1) 直接回答  
+  2) 关键依据（2~4 条）  
+  3) 不确定性与边界
+- 回答后会做引用规范化（剔除越界编号；若无引用则补默认引用）。
+
+---
+
+## 4. 数据来源说明
+
+| 数据类型 | 来源 | 作用 | 备注 |
+|---|---|---|---|
+| 股票历史行情 | Yahoo Finance (`yfinance`) | 计算涨跌、趋势、波动率、图表序列 | 主数据源 |
+| 行情回退 | Stooq CSV 接口 | Yahoo 失败时的降级数据 | 保证可用性 |
+| 公司相关新闻 | Yahoo Finance News | 影响因素线索（财报/宏观/公司） | 参与分析项生成 |
+| 股票代码解析 | Eastmoney Suggest API | 中文公司名/模糊名称映射 symbol | 主解析源 |
+| 股票代码补充 | Yahoo Search API | 解析候选 symbol | 次解析源 |
+| 解析兜底 | DuckDuckGo Search | 极端场景补充 symbol 候选 | 仅兜底 |
+| 知识检索语料 | `app/data/knowledge_base/**` | 金融概念解释类问答 | 本地可维护 |
+| 时效信息补充 | DuckDuckGo Search | 知识问题外部补充上下文 | 可通过 env 关闭 |
+
+> 说明：资产价格类结论来自行情数据，不依赖知识库文本推断。
+
+---
+
+## 5. 关键能力概览
+
+- **问题路由**：`QueryRouter` 将问题分为 `asset` 与 `knowledge`。
+- **资产分析**：
+  - 支持显式周期识别（如“近 30 天”）；
+  - 支持事件日核验（交易日/非交易日、前后交易日提示）；
+  - 回答中返回数据源、回退标记与分析置信度；
+  - 自动生成价格与成交量序列供前端图表展示。
+- **知识检索**：
+  - 文档按标题分段 + 滑窗切片；
+  - 关键字重叠 bonus 提升召回相关性；
+  - 去重策略减少重复片段输出。
+- **来源可追溯**：
+  - 后端返回 `sources`；
+  - 前端将 `[n]` 引用映射为可点击链接（KB 文档可在线预览）。
+
+---
+
+## 6. API 一览
+
+- `GET /api/health`：健康检查
+- `POST /api/chat`：统一问答入口
+- `GET /api/kb/stats`：知识库索引状态
+- `POST /api/kb/reindex`：重建知识库索引
+- `POST /api/kb/search`：知识库检索调试
+- `GET /api/kb/document?path=...`：下载/查看原文
+- `GET /api/kb/document/preview?path=...`：在线预览文档
+
+---
+
+## 7. 本地运行
+
+### 7.1 安装依赖
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-## 4. 核心链路说明
+```bash
+cd frontend
+npm install
+cd ..
+```
 
-### 4.1 资产问题路由
+### 7.2 配置环境变量
 
-- 行情类问题（股价/涨跌/走势/代码/公司名）→ `MarketService`
-- 知识类问题（定义/区别/财报解释等）→ `RAGService + WebSearchService`
+```bash
+cp .env.example .env.local
+```
 
-> 资产问答不依赖知识库生成价格，强制走行情 API。
+重点配置：
 
-### 4.2 股票解析（已去除静态映射）
+- `OPENROUTER_API_KEY`：可选；为空时启用后端模板回答。
+- `WEB_SEARCH_ENABLED`：是否开启 Web 检索补充。
+- `KB_*`：知识库路径、分块参数、索引目录。
+- `EXTERNAL_API_*`：外部 API 最大重试次数与退避间隔。
+- `EVENT_LARGE_MOVE_THRESHOLD_PCT`：大涨/大跌阈值配置。
 
-`SymbolResolverService` 解析顺序：
+### 7.3 启动
 
-1. 识别显式代码（如 `BABA`、`1810.HK`）
-2. 东方财富 `suggest` API（主解析源）
-3. Yahoo Search API（备选）
-4. Web 检索兜底（DuckDuckGo）
-5. 对候选代码做可交易性校验（Stooq `q/l` 接口）
+先构建前端（让后端可直接托管静态资源）：
 
-### 4.3 行情获取降级策略
+```bash
+cd frontend
+npm run build
+cd ..
+```
 
-1. 优先 Yahoo Finance（`yfinance`）
-2. 若限流/异常（如 `YFRateLimitError`），自动降级 Stooq
-3. 返回中标注数据来源（Yahoo 或 Stooq Fallback）
+启动服务：
 
-## 5. Prompt 设计思路
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-- 资产问答 Prompt
-  - 输入：结构化行情数据 + 分析线索（新闻、波动事件）
-  - 约束：先客观数据、再分析、禁止预测、禁止编造
-- RAG 问答 Prompt
-  - 输入：知识库召回片段 + Web 召回片段
-  - 约束：基于检索回答；信息不足时显式说明不确定性
+访问：
 
-## 6. 数据来源说明
+- `http://localhost:8000`
+- `http://localhost:8000/api/health`
 
-- 证券解析：
-  - 东方财富 Suggest API：`https://searchapi.eastmoney.com/api/suggest/get`
-  - Yahoo Search API：`https://query1.finance.yahoo.com/v1/finance/search`
-  - DuckDuckGo Search（兜底）
-- 行情数据：
-  - Yahoo Finance（`yfinance`）
-  - Stooq（限流降级）
-- 新闻线索：Yahoo Finance News（`Ticker.news`）
-- 知识库：本地通用文档目录（`app/data/knowledge_base/**`）
+可选：手动重建知识库
 
-## 7. 通用知识库能力
+```bash
+python scripts/reindex_kb.py
+```
 
-- 支持格式：`md`、`txt`、`json`、`csv`、`pdf`
-- 递归索引：支持按行业/主题分目录管理语料
-- 动态维护：支持 API 或脚本重建索引
+---
 
-知识库管理接口：
-
-- `GET /api/kb/stats`：查看索引状态
-- `POST /api/kb/reindex`：重建索引（请求体：`{"force": true}`）
-
-## 8. API 一览
-
-- `GET /api/health`
-- `POST /api/chat`
-- `GET /api/kb/stats`
-- `POST /api/kb/reindex`
-
-## 9. 目录结构
+## 8. 项目结构
 
 ```text
 .
 ├── app
 │   ├── api/routes.py
+│   ├── common/
+│   │   ├── http_client.py
+│   │   ├── market_rules.py
+│   │   └── symbol_utils.py
 │   ├── core/config.py
-│   ├── data/knowledge_base/**
 │   ├── models/schemas.py
 │   ├── services/
 │   │   ├── answer_service.py
@@ -131,71 +205,28 @@ flowchart LR
 │   │   ├── router_service.py
 │   │   ├── symbol_resolver_service.py
 │   │   └── web_search_service.py
-│   ├── static/index.html
-│   └── main.py
+│   └── data/knowledge_base/**
+├── frontend/src
+│   ├── App.jsx
+│   ├── components/*
+│   ├── constants/chat.js
+│   └── utils/*
 ├── scripts/reindex_kb.py
-├── requirements.txt
-└── .env.example
+└── requirements.txt
 ```
 
-## 10. 运行方式
+---
 
-1) 安装依赖
+## 9. 优化与扩展思考
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
+1. **Agent Skills能力建设**  
+   项目抽象和总结成为Agent Skills用于对接各平台，并搭建Agen长记忆模块和用户行为偏好。
 
-2) 配置环境变量
+2. **RAG 检索增强**  
+   在现有召回后增加 reranker；长文档可引入层级索引（文档级 → 段落级）提升精度与性能。以及后续Milvus集群扩展。
 
-```bash
-cp .env.example .env.local
-# 按需填写 OPENROUTER_API_KEY
-```
+3. **时效治理与缓存**  
+   为新闻与检索片段增加时间衰减权重，并引入 symbol/行情/Web 检索缓存，降低旧信息干扰与外部调用抖动。
 
-配置加载优先级：
-
-- 先加载 `.env`
-- 再加载 `.env.local`（覆盖前者）
-
-3) 启动服务
-
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-4) 访问页面
-
-- `http://localhost:8000`
-- 健康检查：`http://localhost:8000/api/health`
-
-5) 重建知识库索引（可选）
-
-```bash
-python scripts/reindex_kb.py
-```
-
-## 11. 示例问题
-
-- 小米最近 7 天的涨跌情况如何？
-- 腾讯近期走势如何？
-- 阿里巴巴当前股价是多少？
-- BABA 最近 30 天涨跌情况如何？
-- 什么是市盈率？
-- 收入和净利润的区别是什么？
-- 利率上行为什么会压制成长股估值？
-
-## 12. 已知说明
-
-- `GET /favicon.ico` 或 `/.well-known/...` 的 404 多为浏览器探测请求，可忽略。
-- 上游行情 API 可能偶发限流，系统会自动降级到 Stooq；数据来源会在回答中标注。
-
-## 13. 可扩展优化方向
-
-- 增加多市场符号歧义消解（如同名公司优先美股/港股策略）
-- 引入缓存层（symbol 解析、行情缓存）降低外部 API 调用频率
-- 向量库替换为 Milvus / pgvector 以支持更大知识库
-- 增加事件归因链路（财报/宏观日历/公告）
-- 引入多 Agent（路由/检索/验证/回答）进一步降低幻觉
+4. **评测体系建设**  
+   建立离线评测集（资产问答 + 知识问答），持续跟踪引用正确率、事实一致性与响应时延。

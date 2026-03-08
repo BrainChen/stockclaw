@@ -1,0 +1,46 @@
+export const QUICK_QUESTIONS = [
+  "BABA 最近 7 天涨跌情况如何？",
+  "腾讯近期走势如何？",
+  "什么是市盈率？",
+  "利率上行为什么会压制成长股估值？",
+];
+
+export const OBJECTIVE_LABELS = {
+  latest_close: "最新收盘价",
+  latest_date: "最新日期",
+  data_as_of: "数据截至日期",
+  analysis_generated_at: "分析生成时间",
+  currency: "货币",
+  data_provider: "数据提供方",
+  fallback_used: "是否使用回退数据源",
+  analysis_confidence: "分析置信度",
+  news_count: "新闻样本数",
+  change_7d_pct: "近7日涨跌",
+  change_14d_pct: "近14日涨跌",
+  change_30d_pct: "近30日涨跌",
+  trend_14d: "近14日趋势",
+  volatility_14d_pct: "14日年化波动率",
+  event_query_date: "事件查询日期",
+  event_trade_date: "事件交易日期",
+  event_prev_trade_date: "前一交易日",
+  event_next_trade_date: "后一交易日",
+  event_has_data: "事件日是否有数据",
+  event_open: "事件日开盘价",
+  event_high: "事件日最高价",
+  event_low: "事件日最低价",
+  event_close: "事件日收盘价",
+  event_prev_close: "前一交易日收盘价",
+  event_change_pct: "事件日涨跌幅",
+  event_intraday_change_pct: "事件日盘中涨跌幅",
+  event_volume: "事件日成交量",
+  event_is_large_move: "是否达到大幅波动阈值",
+  event_big_move_threshold_pct: "大幅波动阈值",
+};
+
+export const INTERNAL_OBJECTIVE_KEYS = new Set([
+  "requested_window_days",
+  "requested_change_pct",
+  "chart_window_days",
+  "price_series",
+  "volume_series",
+]);

@@ -5,7 +5,9 @@ pandas==2.2.3
 numpy==2.2.4
 yfinance==0.2.61
 scikit-learn==1.6.1
+faiss-cpu>=1.13.0,<2
 httpx==0.28.1
 duckduckgo-search==7.5.2
 python-dotenv==1.0.1
 pypdf==5.3.1
+Markdown==3.8.2

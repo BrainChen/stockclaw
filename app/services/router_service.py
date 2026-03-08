@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Literal, Optional
 
 from app.services.symbol_resolver_service import SymbolResolverService
+from app.common.symbol_utils import extract_explicit_symbol
 
 
 RouteType = Literal["asset", "knowledge"]
@@ -26,6 +27,15 @@ class QueryRouter:
             "价格",
             "ticker",
             "股票",
+            "基金",
+            "指数",
+            "成交量",
+            "收盘价",
+            "开盘价",
+            "最高价",
+            "最低价",
+            "回撤",
+            "波动率",
             "大涨",
             "大跌",
             "7天",
@@ -40,24 +50,46 @@ class QueryRouter:
             "财报摘要",
             "解释",
             "概念",
-            "市盈率",
-            "净利润",
-            "收入",
+            "原理",
+            "逻辑",
+            "估值",
+            "财务报表",
+            "资产配置",
+            "风险管理",
+            "久期",
+            "凸性",
+            "对冲",
             "roe",
             "roa",
             "eps",
         ]
+        self.market_pattern = re.compile(
+            r"(最近|近|过去)?\s*\d{1,3}\s*(天|日|个交易日)|"
+            r"(涨跌|行情|走势|收盘|开盘|最高|最低|成交量|波动|回撤|市值|股价)"
+        )
+        self.knowledge_pattern = re.compile(
+            r"(什么是|如何理解|为什么|区别|定义|概念|框架|原理|影响机制|估值方法|财报解读)"
+        )
 
     def route(self, question: str) -> RouteResult:
-        lowered = question.lower()
-        explicit_symbol = self._extract_explicit_symbol(question)
-        has_asset_keyword = any(keyword in lowered for keyword in self.asset_keywords)
-        has_knowledge_keyword = any(keyword in lowered for keyword in self.knowledge_keywords)
+        cleaned_question = question.strip()
+        lowered = cleaned_question.lower()
+        explicit_symbol = self._extract_explicit_symbol(cleaned_question)
+        has_asset_keyword = any(keyword in lowered for keyword in self.asset_keywords) or bool(
+            self.market_pattern.search(cleaned_question)
+        )
+        has_knowledge_keyword = any(keyword in lowered for keyword in self.knowledge_keywords) or bool(
+            self.knowledge_pattern.search(cleaned_question)
+        )
 
         if explicit_symbol:
             return RouteResult(route="asset", symbol=explicit_symbol)
         if has_asset_keyword:
-            symbol = self.extract_symbol(question)
+            symbol = self.extract_symbol(cleaned_question)
+            if symbol:
+                return RouteResult(route="asset", symbol=symbol)
+            if has_knowledge_keyword:
+                return RouteResult(route="knowledge")
             return RouteResult(route="asset", symbol=symbol)
         if has_knowledge_keyword:
             return RouteResult(route="knowledge")
@@ -67,11 +99,4 @@ class QueryRouter:
         return self.symbol_resolver.resolve(question)
 
     def _extract_explicit_symbol(self, question: str) -> Optional[str]:
-        ticker_match = re.findall(r"\b[A-Z]{1,5}(?:\.[A-Z]{1,3})?\b", question.upper())
-        if ticker_match:
-            return ticker_match[0]
-        hk_match = re.findall(r"\b0?\d{3,5}\.HK\b", question.upper())
-        if hk_match:
-            code = hk_match[0].split(".")[0]
-            return f"{int(code):04d}.HK"
-        return None
+        return extract_explicit_symbol(question)

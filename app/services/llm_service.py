@@ -1,13 +1,13 @@
 from typing import Optional
 
-import httpx
-
 from app.core.config import get_settings
+from app.common.http_client import get_http_client
 
 
 class LLMService:
     def __init__(self) -> None:
         self.settings = get_settings()
+        self.http_client = get_http_client()
         self._enabled = bool(self.settings.openrouter_api_key)
 
     @property
@@ -35,14 +35,14 @@ class LLMService:
                     {"role": "user", "content": user_prompt},
                 ],
             }
-            response = httpx.post(
+            data = self.http_client.post_json(
                 f"{self.settings.openrouter_base_url.rstrip('/')}/chat/completions",
+                payload=payload,
                 headers=headers,
-                json=payload,
                 timeout=45.0,
             )
-            response.raise_for_status()
-            data = response.json()
+            if not data:
+                return None
             return data["choices"][0]["message"]["content"]
         except Exception:
             return None

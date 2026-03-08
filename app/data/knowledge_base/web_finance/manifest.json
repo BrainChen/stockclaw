@@ -1,0 +1,618 @@
+[
+  {
+    "title": "How to Calculate the Equity Risk Premium for Smart Investing",
+    "url": "https://www.investopedia.com/investing/calculating-equity-risk-premium/",
+    "source_query": "equity risk premium explanation",
+    "file": "app/data/knowledge_base/web_finance/how_to_calculate_the_equity_risk_premium_for_smart_investing_1925e1c3ae.md",
+    "text_length": 14265
+  },
+  {
+    "title": "Income Statement: How to Read and Use It",
+    "url": "https://www.investopedia.com/terms/i/incomestatement.asp",
+    "source_query": "financial statement analysis basics",
+    "file": "app/data/knowledge_base/web_finance/income_statement_how_to_read_and_use_it_951a1ecf77.md",
+    "text_length": 18318
+  },
+  {
+    "title": "Equity: Meaning, How It Works, and How to Calculate It",
+    "url": "https://www.investopedia.com/terms/e/equity.asp",
+    "source_query": "return on equity explanation",
+    "file": "app/data/knowledge_base/web_finance/equity_meaning_how_it_works_and_how_to_calculate_it_225d63019a.md",
+    "text_length": 22005
+  },
+  {
+    "title": "Master WACC Calculation: Key Steps to Measure Cost of Capital",
+    "url": "https://www.investopedia.com/ask/answers/021615/how-do-you-calculate-proper-weights-different-costs-capital.asp",
+    "source_query": "weighted average cost of capital",
+    "file": "app/data/knowledge_base/web_finance/master_wacc_calculation_key_steps_to_measure_cost_of_capital_ede45e9213.md",
+    "text_length": 5382
+  },
+  {
+    "title": "S&P 500 (SP500) | FRED | St. Louis Fed",
+    "url": "https://fred.stlouisfed.org/series/SP500",
+    "source_query": "interest rates and equity valuation",
+    "file": "app/data/knowledge_base/web_finance/sp_500_sp500__fred__st_louis_fed_c35c5db404.md",
+    "text_length": 6714
+  },
+  {
+    "title": "Fixed Income Risks - Overview, Breakdown, Why Matters",
+    "url": "https://corporatefinanceinstitute.com/resources/fixed-income/fixed-income-risks/",
+    "source_query": "fixed income risk management",
+    "file": "app/data/knowledge_base/web_finance/fixed_income_risks_-_overview_breakdown_why_matters_3b46c75f43.md",
+    "text_length": 6902
+  },
+  {
+    "title": "Liquidity Risk: What It Is and How to Measure It",
+    "url": "https://www.investopedia.com/articles/trading/11/understanding-liquidity-risk.asp",
+    "source_query": "liquidity risk in financial markets",
+    "file": "app/data/knowledge_base/web_finance/liquidity_risk_what_it_is_and_how_to_measure_it_0612a09a3d.md",
+    "text_length": 11509
+  },
+  {
+    "title": "Price-to-Earnings (P/E) Ratio: Definition, Formula, and Examples",
+    "url": "https://www.investopedia.com/terms/p/price-earningsratio.asp",
+    "source_query": "what is price to earnings ratio",
+    "file": "app/data/knowledge_base/web_finance/price-to-earnings_pe_ratio_definition_formula_and_examples_7c8b797a91.md",
+    "text_length": 25219
+  },
+  {
+    "title": "Financial Statement Analysis: Techniques for Balance Sheet, Income & Cash Flow",
+    "url": "https://www.investopedia.com/terms/f/financial-statement-analysis.asp",
+    "source_query": "financial statement analysis basics",
+    "file": "app/data/knowledge_base/web_finance/financial_statement_analysis_techniques_for_balance_sheet_income__cash_flow_988e14a4c7.md",
+    "text_length": 10387
+  },
+  {
+    "title": "Cash Conversion Cycle: Understand the Key Formula and Benefits",
+    "url": "https://www.investopedia.com/articles/06/cashconversioncycle.asp",
+    "source_query": "working capital management basics",
+    "file": "app/data/knowledge_base/web_finance/cash_conversion_cycle_understand_the_key_formula_and_benefits_bc076fbb67.md",
+    "text_length": 9336
+  },
+  {
+    "title": "Why Cost of Capital Matters",
+    "url": "https://www.investopedia.com/terms/c/costofcapital.asp",
+    "source_query": "weighted average cost of capital",
+    "file": "app/data/knowledge_base/web_finance/why_cost_of_capital_matters_096822d5b7.md",
+    "text_length": 11620
+  },
+  {
+    "title": "Protecting Portfolios Using Correlation Diversification",
+    "url": "https://www.investopedia.com/articles/financial-theory/09/uncorrelated-assets-diversification.asp",
+    "source_query": "portfolio diversification correlation",
+    "file": "app/data/knowledge_base/web_finance/protecting_portfolios_using_correlation_diversification_d45d0cad90.md",
+    "text_length": 9840
+  },
+  {
+    "title": "Credit Spread | Formula + Calculator",
+    "url": "https://www.wallstreetprep.com/knowledge/credit-spread/",
+    "source_query": "credit spread meaning",
+    "file": "app/data/knowledge_base/web_finance/credit_spread__formula__calculator_7d55169a22.md",
+    "text_length": 8777
+  },
+  {
+    "title": "Currency Risk Explained: Definition, Examples, and Management Strategies",
+    "url": "https://www.investopedia.com/terms/c/currencyrisk.asp",
+    "source_query": "currency risk management in finance",
+    "file": "app/data/knowledge_base/web_finance/currency_risk_explained_definition_examples_and_management_strategies_607102a76c.md",
+    "text_length": 8344
+  },
+  {
+    "title": "ROI: Return on Investment Meaning and Calculation Formulas",
+    "url": "https://www.investopedia.com/articles/basics/10/guide-to-calculating-roi.asp",
+    "source_query": "return on invested capital explanation",
+    "file": "app/data/knowledge_base/web_finance/roi_return_on_investment_meaning_and_calculation_formulas_fa950cc1ae.md",
+    "text_length": 19402
+  },
+  {
+    "title": "Behavioral Finance - Overview, Theories, Top 10 Biases",
+    "url": "https://corporatefinanceinstitute.com/resources/career-map/sell-side/capital-markets/behavioral-finance/",
+    "source_query": "behavioral finance biases",
+    "file": "app/data/knowledge_base/web_finance/behavioral_finance_-_overview_theories_top_10_biases_742dcc02a0.md",
+    "text_length": 4989
+  },
+  {
+    "title": "How to Calculate Value at Risk (VaR) for Financial Portfolios",
+    "url": "https://www.investopedia.com/terms/v/var.asp",
+    "source_query": "value at risk explained",
+    "file": "app/data/knowledge_base/web_finance/how_to_calculate_value_at_risk_var_for_financial_portfolios_86568cb30b.md",
+    "text_length": 10076
+  },
+  {
+    "title": "Working Capital Management - Overview, How It Works, Importance",
+    "url": "https://corporatefinanceinstitute.com/resources/accounting/working-capital-management/",
+    "source_query": "working capital management basics",
+    "file": "app/data/knowledge_base/web_finance/working_capital_management_-_overview_how_it_works_importance_f7c8e0b4fb.md",
+    "text_length": 7004
+  },
+  {
+    "title": "Understanding Credit Spread Options: Definition, Functionality, and Types",
+    "url": "https://www.investopedia.com/terms/c/credit-spread-option.asp",
+    "source_query": "credit spread meaning",
+    "file": "app/data/knowledge_base/web_finance/understanding_credit_spread_options_definition_functionality_and_types_a09fe7abce.md",
+    "text_length": 4052
+  },
+  {
+    "title": "Financial Ratios - Complete List and Guide to All Financial Ratios",
+    "url": "https://corporatefinanceinstitute.com/resources/accounting/financial-ratios/",
+    "source_query": "financial statement analysis basics",
+    "file": "app/data/knowledge_base/web_finance/financial_ratios_-_complete_list_and_guide_to_all_financial_ratios_90321fa889.md",
+    "text_length": 13384
+  },
+  {
+    "title": "Analyzing Financial Statements: Key Metrics and Methods",
+    "url": "https://corporatefinanceinstitute.com/resources/accounting/analysis-of-financial-statements/",
+    "source_query": "financial statement analysis basics",
+    "file": "app/data/knowledge_base/web_finance/analyzing_financial_statements_key_metrics_and_methods_dabbb97ca4.md",
+    "text_length": 10514
+  },
+  {
+    "title": "Types of Financial Risk That Companies Encounter",
+    "url": "https://www.investopedia.com/ask/answers/062415/what-are-major-categories-financial-risk-company.asp",
+    "source_query": "liquidity risk in financial markets",
+    "file": "app/data/knowledge_base/web_finance/types_of_financial_risk_that_companies_encounter_3d4d2cad2f.md",
+    "text_length": 7695
+  },
+  {
+    "title": "Inflation’s Impact on Stock Returns",
+    "url": "https://www.investopedia.com/articles/investing/052913/inflations-impact-stock-returns.asp",
+    "source_query": "inflation impact on stock valuation",
+    "file": "app/data/knowledge_base/web_finance/inflations_impact_on_stock_returns_6743093559.md",
+    "text_length": 9245
+  },
+  {
+    "title": "Discounted Cash Flow (DCF) Explained With Formula and Examples",
+    "url": "https://www.investopedia.com/terms/d/dcf.asp",
+    "source_query": "what is discounted cash flow valuation",
+    "file": "app/data/knowledge_base/web_finance/discounted_cash_flow_dcf_explained_with_formula_and_examples_ed21cb7904.md",
+    "text_length": 14182
+  },
+  {
+    "title": "Corporate Finance Explained: How Companies Manage Currency Risk",
+    "url": "https://corporatefinanceinstitute.com/resources/finpod/corporate-finance-explained-how-companies-manage-currency-risk/",
+    "source_query": "currency risk management in finance",
+    "file": "app/data/knowledge_base/web_finance/corporate_finance_explained_how_companies_manage_currency_risk_4f95d94d4b.md",
+    "text_length": 25413
+  },
+  {
+    "title": "Duration and Convexity To Measure Bond Risk",
+    "url": "https://www.investopedia.com/articles/bonds/08/duration-convexity.asp",
+    "source_query": "duration and convexity bond",
+    "file": "app/data/knowledge_base/web_finance/duration_and_convexity_to_measure_bond_risk_9ebdc71fc1.md",
+    "text_length": 13398
+  },
+  {
+    "title": "Idiosyncratic Risk - Definition, Types, Examples",
+    "url": "https://corporatefinanceinstitute.com/resources/career-map/sell-side/risk-management/idiosyncratic-risk/",
+    "source_query": "systematic risk idiosyncratic risk",
+    "file": "app/data/knowledge_base/web_finance/idiosyncratic_risk_-_definition_types_examples_602dd01c47.md",
+    "text_length": 4707
+  },
+  {
+    "title": "Balance Sheet: Explanation, Components, and Examples",
+    "url": "https://www.investopedia.com/terms/b/balancesheet.asp",
+    "source_query": "financial statement analysis basics",
+    "file": "app/data/knowledge_base/web_finance/balance_sheet_explanation_components_and_examples_ac89134b34.md",
+    "text_length": 21421
+  },
+  {
+    "title": "How Working Capital Works",
+    "url": "https://www.investopedia.com/articles/fundamental/03/061803.asp",
+    "source_query": "working capital management basics",
+    "file": "app/data/knowledge_base/web_finance/how_working_capital_works_89e9e78a72.md",
+    "text_length": 8932
+  },
+  {
+    "title": "Cash Flow: What It Is, How It Works, and How to Analyze It",
+    "url": "https://www.investopedia.com/terms/c/cashflow.asp",
+    "source_query": "cash flow statement explained",
+    "file": "app/data/knowledge_base/web_finance/cash_flow_what_it_is_how_it_works_and_how_to_analyze_it_fc77d13b2b.md",
+    "text_length": 10664
+  },
+  {
+    "title": "Mastering Working Capital Management for Business Success",
+    "url": "https://www.investopedia.com/ask/answers/100715/why-working-capital-management-important-company.asp",
+    "source_query": "working capital management basics",
+    "file": "app/data/knowledge_base/web_finance/mastering_working_capital_management_for_business_success_8a87ba82eb.md",
+    "text_length": 6580
+  },
+  {
+    "title": "Capital Structure",
+    "url": "https://corporatefinanceinstitute.com/resources/accounting/capital-structure-overview/",
+    "source_query": "corporate finance capital structure",
+    "file": "app/data/knowledge_base/web_finance/capital_structure_145ac69690.md",
+    "text_length": 7881
+  },
+  {
+    "title": "Options Trading Decoded: 5 Key 'Greeks' You Must Understand",
+    "url": "https://www.investopedia.com/trading/using-the-greeks-to-understand-options/",
+    "source_query": "delta gamma vega theta explained",
+    "file": "app/data/knowledge_base/web_finance/options_trading_decoded_5_key_greeks_you_must_understand_7ad88244bd.md",
+    "text_length": 20334
+  },
+  {
+    "title": "Yield Curve - Definition, Diagrams, Types of Yield Curves",
+    "url": "https://corporatefinanceinstitute.com/resources/fixed-income/yield-curve/",
+    "source_query": "yield curve explained",
+    "file": "app/data/knowledge_base/web_finance/yield_curve_-_definition_diagrams_types_of_yield_curves_1ca7953923.md",
+    "text_length": 7595
+  },
+  {
+    "title": "Understanding Liquidity Risk in Banks and Business, With Examples",
+    "url": "https://www.investopedia.com/terms/l/liquidityrisk.asp",
+    "source_query": "liquidity risk in financial markets",
+    "file": "app/data/knowledge_base/web_finance/understanding_liquidity_risk_in_banks_and_business_with_examples_27f913477f.md",
+    "text_length": 21780
+  },
+  {
+    "title": "Return on Equity (ROE) - Formula, Examples and Guide to ROE",
+    "url": "https://corporatefinanceinstitute.com/resources/accounting/what-is-return-on-equity-roe/",
+    "source_query": "return on equity explanation",
+    "file": "app/data/knowledge_base/web_finance/return_on_equity_roe_-_formula_examples_and_guide_to_roe_bd5f5b489a.md",
+    "text_length": 8449
+  },
+  {
+    "title": "Using Futures to Hedge: Strategies for Risk Management",
+    "url": "https://www.investopedia.com/ask/answers/06/futureshedge.asp",
+    "source_query": "hedging with futures and options",
+    "file": "app/data/knowledge_base/web_finance/using_futures_to_hedge_strategies_for_risk_management_d20ff3966e.md",
+    "text_length": 22542
+  },
+  {
+    "title": "Analyzing a Company’s Capital Structure",
+    "url": "https://www.investopedia.com/articles/basics/06/capitalstructure.asp",
+    "source_query": "corporate finance capital structure",
+    "file": "app/data/knowledge_base/web_finance/analyzing_a_companys_capital_structure_636b518084.md",
+    "text_length": 10406
+  },
+  {
+    "title": "Working Capital Management: What It Is and How It Works",
+    "url": "https://www.investopedia.com/terms/w/workingcapitalmanagement.asp",
+    "source_query": "working capital management basics",
+    "file": "app/data/knowledge_base/web_finance/working_capital_management_what_it_is_and_how_it_works_22f0ab0197.md",
+    "text_length": 9380
+  },
+  {
+    "title": "Return on Invested Capital (ROIC) | Formula + Calculator",
+    "url": "https://www.wallstreetprep.com/knowledge/roic-return-on-invested-capital/",
+    "source_query": "return on invested capital explanation",
+    "file": "app/data/knowledge_base/web_finance/return_on_invested_capital_roic__formula__calculator_6f04d65a59.md",
+    "text_length": 23094
+  },
+  {
+    "title": "Best Stock Valuation Methods: DDM, DCF, and Comparables Explained",
+    "url": "https://www.investopedia.com/articles/fundamental-analysis/11/choosing-valuation-methods.asp",
+    "source_query": "what is discounted cash flow valuation",
+    "file": "app/data/knowledge_base/web_finance/best_stock_valuation_methods_ddm_dcf_and_comparables_explained_3194dab8d3.md",
+    "text_length": 15328
+  },
+  {
+    "title": "What Is a Good WACC? Analyzing Weighted Average Cost of Capital",
+    "url": "https://www.investopedia.com/ask/answers/013015/what-does-high-weighted-average-cost-capital-wacc-signify.asp",
+    "source_query": "weighted average cost of capital",
+    "file": "app/data/knowledge_base/web_finance/what_is_a_good_wacc_analyzing_weighted_average_cost_of_capital_cbf23361fa.md",
+    "text_length": 7441
+  },
+  {
+    "title": "Statement of Cash Flows: Free Template & Examples",
+    "url": "https://corporatefinanceinstitute.com/resources/accounting/statement-of-cash-flows/",
+    "source_query": "financial statement analysis basics",
+    "file": "app/data/knowledge_base/web_finance/statement_of_cash_flows_free_template__examples_59327752dc.md",
+    "text_length": 12977
+  },
+  {
+    "title": "ROIC - Formula, Examples, How to Calculate ROIC",
+    "url": "https://corporatefinanceinstitute.com/resources/accounting/what-is-roic/",
+    "source_query": "return on invested capital explanation",
+    "file": "app/data/knowledge_base/web_finance/roic_-_formula_examples_how_to_calculate_roic_723aea9854.md",
+    "text_length": 8434
+  },
+  {
+    "title": "Understanding Value at Risk (VaR): Explanation and Calculation Methods",
+    "url": "https://www.investopedia.com/articles/04/092904.asp",
+    "source_query": "value at risk explained",
+    "file": "app/data/knowledge_base/web_finance/understanding_value_at_risk_var_explanation_and_calculation_methods_2e364c17c8.md",
+    "text_length": 9775
+  },
+  {
+    "title": "Behavioral Finance: Biases, Emotions and Financial Behavior",
+    "url": "https://www.investopedia.com/terms/b/behavioralfinance.asp",
+    "source_query": "behavioral finance biases",
+    "file": "app/data/knowledge_base/web_finance/behavioral_finance_biases_emotions_and_financial_behavior_a47305a16a.md",
+    "text_length": 12416
+  },
+  {
+    "title": "How to Calculate Return on Invested Capital (ROIC)",
+    "url": "https://www.investopedia.com/terms/r/returnoninvestmentcapital.asp",
+    "source_query": "return on invested capital explanation",
+    "file": "app/data/knowledge_base/web_finance/how_to_calculate_return_on_invested_capital_roic_aca293018d.md",
+    "text_length": 11604
+  },
+  {
+    "title": "Equity Risk Premium - Definition, Calculate, Formula",
+    "url": "https://corporatefinanceinstitute.com/resources/valuation/equity-risk-premium/",
+    "source_query": "equity risk premium explanation",
+    "file": "app/data/knowledge_base/web_finance/equity_risk_premium_-_definition_calculate_formula_6ab47b4c42.md",
+    "text_length": 4814
+  },
+  {
+    "title": "Yield Curve: What It Is, How It Works, and Types",
+    "url": "https://www.investopedia.com/terms/y/yieldcurve.asp",
+    "source_query": "yield curve explained",
+    "file": "app/data/knowledge_base/web_finance/yield_curve_what_it_is_how_it_works_and_types_94d3942255.md",
+    "text_length": 7588
+  },
+  {
+    "title": "Credit Spread: What It Means for Bonds and Options Strategy",
+    "url": "https://www.investopedia.com/terms/c/creditspread.asp",
+    "source_query": "credit spread meaning",
+    "file": "app/data/knowledge_base/web_finance/credit_spread_what_it_means_for_bonds_and_options_strategy_a06eefaeb6.md",
+    "text_length": 16329
+  },
+  {
+    "title": "Price-to-Book (P/B) Ratio: Meaning, Formula, and Example",
+    "url": "https://www.investopedia.com/terms/p/price-to-bookratio.asp",
+    "source_query": "what is price to book ratio",
+    "file": "app/data/knowledge_base/web_finance/price-to-book_pb_ratio_meaning_formula_and_example_6d5cbbf2a4.md",
+    "text_length": 13734
+  },
+  {
+    "title": "Cash Flow Analysis: Master the Basics of Financial Liquidity",
+    "url": "https://www.investopedia.com/articles/stocks/07/easycashflow.asp",
+    "source_query": "financial statement analysis basics",
+    "file": "app/data/knowledge_base/web_finance/cash_flow_analysis_master_the_basics_of_financial_liquidity_af08d76a27.md",
+    "text_length": 18260
+  },
+  {
+    "title": "About a rate of (general) interest: how monetary policy transmits | Bank of England",
+    "url": "https://www.bankofengland.co.uk/quarterly-bulletin/2024/2024/about-a-rate-of-general-interest-how-monetary-policy-transmits",
+    "source_query": "monetary policy transmission mechanism",
+    "file": "app/data/knowledge_base/web_finance/about_a_rate_of_general_interest_how_monetary_policy_transmits__bank_of_england_eed1a952d1.md",
+    "text_length": 97809
+  },
+  {
+    "title": "Profit and Loss Statement: Meaning, Importance, Types, and Examples",
+    "url": "https://www.investopedia.com/terms/p/plstatement.asp",
+    "source_query": "financial statement analysis basics",
+    "file": "app/data/knowledge_base/web_finance/profit_and_loss_statement_meaning_importance_types_and_examples_e50a49283b.md",
+    "text_length": 9642
+  },
+  {
+    "title": "Net Present Value vs. Internal Rate of Return: What's the Difference?",
+    "url": "https://www.investopedia.com/ask/answers/05/npv-irr.asp",
+    "source_query": "net present value internal rate of return",
+    "file": "app/data/knowledge_base/web_finance/net_present_value_vs_internal_rate_of_return_whats_the_difference_da7732dcb0.md",
+    "text_length": 8466
+  },
+  {
+    "title": "Financial Statements: List of Types and How to Read Them",
+    "url": "https://www.investopedia.com/terms/f/financial-statements.asp",
+    "source_query": "financial statement analysis basics",
+    "file": "app/data/knowledge_base/web_finance/financial_statements_list_of_types_and_how_to_read_them_695868fa68.md",
+    "text_length": 14709
+  },
+  {
+    "title": "Idiosyncratic Risk: Definition, Types, Examples, and Ways to Minimize",
+    "url": "https://www.investopedia.com/terms/i/idiosyncraticrisk.asp",
+    "source_query": "systematic risk idiosyncratic risk",
+    "file": "app/data/knowledge_base/web_finance/idiosyncratic_risk_definition_types_examples_and_ways_to_minimize_e040a71a9a.md",
+    "text_length": 10127
+  },
+  {
+    "title": "Understanding Good PEG Ratios for Stock Valuation",
+    "url": "https://www.investopedia.com/ask/answers/012715/what-considered-good-peg-price-earnings-growth-ratio.asp",
+    "source_query": "what is price to earnings ratio",
+    "file": "app/data/knowledge_base/web_finance/understanding_good_peg_ratios_for_stock_valuation_a89ce71d76.md",
+    "text_length": 7344
+  },
+  {
+    "title": "What Is Return on Investment (ROI) and How to Calculate It",
+    "url": "https://www.investopedia.com/terms/r/returnoninvestment.asp",
+    "source_query": "return on equity explanation",
+    "file": "app/data/knowledge_base/web_finance/what_is_return_on_investment_roi_and_how_to_calculate_it_43dd945c94.md",
+    "text_length": 13887
+  },
+  {
+    "title": "Understanding Risk Parity: Strategies and Real-World Examples",
+    "url": "https://www.investopedia.com/terms/r/risk-parity.asp",
+    "source_query": "risk parity strategy explained",
+    "file": "app/data/knowledge_base/web_finance/understanding_risk_parity_strategies_and_real-world_examples_aea6867a63.md",
+    "text_length": 6517
+  },
+  {
+    "title": "Credit Spread - Overview, How to Calculate, Example",
+    "url": "https://corporatefinanceinstitute.com/resources/career-map/sell-side/capital-markets/credit-spread/",
+    "source_query": "credit spread meaning",
+    "file": "app/data/knowledge_base/web_finance/credit_spread_-_overview_how_to_calculate_example_99638d7904.md",
+    "text_length": 4370
+  },
+  {
+    "title": "Working Capital: Formula, Components, and Limitations",
+    "url": "https://www.investopedia.com/terms/w/workingcapital.asp",
+    "source_query": "working capital management basics",
+    "file": "app/data/knowledge_base/web_finance/working_capital_formula_components_and_limitations_99fd5f9678.md",
+    "text_length": 14071
+  },
+  {
+    "title": "Understanding Equity Risk Premium: Definition and Calculation",
+    "url": "https://www.investopedia.com/terms/e/equityriskpremium.asp",
+    "source_query": "equity risk premium explanation",
+    "file": "app/data/knowledge_base/web_finance/understanding_equity_risk_premium_definition_and_calculation_0bdb9e0a25.md",
+    "text_length": 13638
+  },
+  {
+    "title": "Evaluating EPS Quality: Uncover Earnings Manipulations",
+    "url": "https://www.investopedia.com/articles/analyst/03/091703.asp",
+    "source_query": "earnings quality analysis",
+    "file": "app/data/knowledge_base/web_finance/evaluating_eps_quality_uncover_earnings_manipulations_5ee2b3ac99.md",
+    "text_length": 11408
+  },
+  {
+    "title": "Inflation: What It Is and How to Control Inflation Rates",
+    "url": "https://www.investopedia.com/terms/i/inflation.asp",
+    "source_query": "inflation impact on stock valuation",
+    "file": "app/data/knowledge_base/web_finance/inflation_what_it_is_and_how_to_control_inflation_rates_11da0b6b0d.md",
+    "text_length": 30579
+  },
+  {
+    "title": "Monetary Transmission Mechanism - Overview, Central Bank Action",
+    "url": "https://corporatefinanceinstitute.com/resources/economics/monetary-transmission-mechanism/",
+    "source_query": "monetary policy transmission mechanism",
+    "file": "app/data/knowledge_base/web_finance/monetary_transmission_mechanism_-_overview_central_bank_action_9604beabd1.md",
+    "text_length": 6843
+  },
+  {
+    "title": "Cash Flow Statements: How to Prepare and Read One",
+    "url": "https://www.investopedia.com/investing/what-is-a-cash-flow-statement/",
+    "source_query": "financial statement analysis basics",
+    "file": "app/data/knowledge_base/web_finance/cash_flow_statements_how_to_prepare_and_read_one_100d4b50d9.md",
+    "text_length": 14592
+  },
+  {
+    "title": "Return on Equity (ROE) Calculation and What It Means",
+    "url": "https://www.investopedia.com/terms/r/returnonequity.asp",
+    "source_query": "return on equity explanation",
+    "file": "app/data/knowledge_base/web_finance/return_on_equity_roe_calculation_and_what_it_means_5c9a26998c.md",
+    "text_length": 20161
+  },
+  {
+    "title": "Idiosyncratic Risk | Definition + Examples",
+    "url": "https://www.wallstreetprep.com/knowledge/idiosyncratic-risk/",
+    "source_query": "systematic risk idiosyncratic risk",
+    "file": "app/data/knowledge_base/web_finance/idiosyncratic_risk__definition__examples_fea650af62.md",
+    "text_length": 9316
+  },
+  {
+    "title": "Transmission mechanism",
+    "url": "https://www.ecb.europa.eu/mopo/intro/transmission/html/index.en.html",
+    "source_query": "monetary policy transmission mechanism",
+    "file": "app/data/knowledge_base/web_finance/transmission_mechanism_3558d1ae6a.md",
+    "text_length": 5274
+  },
+  {
+    "title": "Market to Book Ratio (Price to Book) - Defined, Formula",
+    "url": "https://corporatefinanceinstitute.com/resources/valuation/market-to-book-ratio-price-book/",
+    "source_query": "what is price to book ratio",
+    "file": "app/data/knowledge_base/web_finance/market_to_book_ratio_price_to_book_-_defined_formula_a5f56f3c2e.md",
+    "text_length": 6041
+  },
+  {
+    "title": "Profit and Loss Statement (P&L)",
+    "url": "https://corporatefinanceinstitute.com/resources/accounting/profit-and-loss-statement-pl/",
+    "source_query": "financial statement analysis basics",
+    "file": "app/data/knowledge_base/web_finance/profit_and_loss_statement_pl_48a651ddd7.md",
+    "text_length": 7070
+  },
+  {
+    "title": "Net Present Value (NPV): What It Means and Steps to Calculate It",
+    "url": "https://www.investopedia.com/terms/n/npv.asp",
+    "source_query": "what is discounted cash flow valuation",
+    "file": "app/data/knowledge_base/web_finance/net_present_value_npv_what_it_means_and_steps_to_calculate_it_8644516330.md",
+    "text_length": 17189
+  },
+  {
+    "title": "Trailing Price-to-Earnings (Trailing P/E): Definition and Example",
+    "url": "https://www.investopedia.com/terms/t/trailingpe.asp",
+    "source_query": "what is price to earnings ratio",
+    "file": "app/data/knowledge_base/web_finance/trailing_price-to-earnings_trailing_pe_definition_and_example_61545fb816.md",
+    "text_length": 6483
+  },
+  {
+    "title": "Understanding Risk Premiums: Boosting Returns for Risky Investments",
+    "url": "https://www.investopedia.com/terms/r/riskpremium.asp",
+    "source_query": "equity risk premium explanation",
+    "file": "app/data/knowledge_base/web_finance/understanding_risk_premiums_boosting_returns_for_risky_investments_fad77008fe.md",
+    "text_length": 10206
+  },
+  {
+    "title": "Understanding WACC: Definition, Formula, and Calculation Explained",
+    "url": "https://www.investopedia.com/terms/w/wacc.asp",
+    "source_query": "weighted average cost of capital",
+    "file": "app/data/knowledge_base/web_finance/understanding_wacc_definition_formula_and_calculation_explained_a45267c7b2.md",
+    "text_length": 13642
+  },
+  {
+    "title": "Free Cash Flow (FCF): How to Calculate and Interpret It",
+    "url": "https://www.investopedia.com/terms/f/freecashflow.asp",
+    "source_query": "cash flow statement explained",
+    "file": "app/data/knowledge_base/web_finance/free_cash_flow_fcf_how_to_calculate_and_interpret_it_b7edce3628.md",
+    "text_length": 16012
+  },
+  {
+    "title": "Price to Book (P/B Ratio) | Formula + Calculator",
+    "url": "https://www.wallstreetprep.com/knowledge/price-to-book-ratio/",
+    "source_query": "what is price to book ratio",
+    "file": "app/data/knowledge_base/web_finance/price_to_book_pb_ratio__formula__calculator_2acce817c1.md",
+    "text_length": 10407
+  },
+  {
+    "title": "The Equity Risk Premium: More Risk for Higher Returns",
+    "url": "https://www.investopedia.com/articles/04/012104.asp",
+    "source_query": "equity risk premium explanation",
+    "file": "app/data/knowledge_base/web_finance/the_equity_risk_premium_more_risk_for_higher_returns_718c2b53f3.md",
+    "text_length": 13384
+  },
+  {
+    "title": "Investopedia",
+    "url": "https://www.investopedia.com/",
+    "source_query": "inflation impact on stock valuation",
+    "file": "app/data/knowledge_base/web_finance/investopedia_c24832368c.md",
+    "text_length": 4669
+  },
+  {
+    "title": "What Is Diversification? Definition As an Investing Strategy",
+    "url": "https://www.investopedia.com/terms/d/diversification.asp",
+    "source_query": "portfolio diversification correlation",
+    "file": "app/data/knowledge_base/web_finance/what_is_diversification_definition_as_an_investing_strategy_ef7190c1de.md",
+    "text_length": 25797
+  },
+  {
+    "title": "Capital Structure Definition, Types, Importance, and Examples",
+    "url": "https://www.investopedia.com/terms/c/capitalstructure.asp",
+    "source_query": "corporate finance capital structure",
+    "file": "app/data/knowledge_base/web_finance/capital_structure_definition_types_importance_and_examples_ac3f473242.md",
+    "text_length": 9523
+  },
+  {
+    "title": "Equity Risk Premium (ERP) | Formula + Calculator",
+    "url": "https://www.wallstreetprep.com/knowledge/equity-risk-premium/",
+    "source_query": "equity risk premium explanation",
+    "file": "app/data/knowledge_base/web_finance/equity_risk_premium_erp__formula__calculator_a20b244f88.md",
+    "text_length": 12021
+  },
+  {
+    "title": "Net Present Value (NPV) - Definition, Examples, How to Do NPV Analysis",
+    "url": "https://corporatefinanceinstitute.com/resources/valuation/net-present-value-npv/",
+    "source_query": "what is discounted cash flow valuation",
+    "file": "app/data/knowledge_base/web_finance/net_present_value_npv_-_definition_examples_how_to_do_npv_analysis_5bf3d8d363.md",
+    "text_length": 9416
+  },
+  {
+    "title": "WACC Formula, Definition and Uses - Guide to Cost of Capital",
+    "url": "https://corporatefinanceinstitute.com/resources/valuation/what-is-wacc-formula/",
+    "source_query": "weighted average cost of capital",
+    "file": "app/data/knowledge_base/web_finance/wacc_formula_definition_and_uses_-_guide_to_cost_of_capital_a60f912d64.md",
+    "text_length": 10912
+  },
+  {
+    "title": "Understanding the Earnings Multiplier: Definition, Function, and Examples",
+    "url": "https://www.investopedia.com/terms/e/earningsmultiplier.asp",
+    "source_query": "what is price to earnings ratio",
+    "file": "app/data/knowledge_base/web_finance/understanding_the_earnings_multiplier_definition_function_and_examples_6582cdd600.md",
+    "text_length": 5678
+  },
+  {
+    "title": "Monte Carlo Simulation: What It Is, How It Works, History, 4 Key Steps",
+    "url": "https://www.investopedia.com/terms/m/montecarlosimulation.asp",
+    "source_query": "risk parity strategy explained",
+    "file": "app/data/knowledge_base/web_finance/monte_carlo_simulation_what_it_is_how_it_works_history_4_key_steps_6417db9744.md",
+    "text_length": 14138
+  },
+  {
+    "title": "NPV vs IRR - Overview, Similarities and Differences, Conflicts",
+    "url": "https://corporatefinanceinstitute.com/resources/valuation/npv-vs-irr/",
+    "source_query": "net present value internal rate of return",
+    "file": "app/data/knowledge_base/web_finance/npv_vs_irr_-_overview_similarities_and_differences_conflicts_73b5b36d34.md",
+    "text_length": 7074
+  }
+]
