@@ -7,12 +7,13 @@ from urllib.parse import quote
 
 import numpy as np
 import pandas as pd
+import requests
 import yfinance as yf
 
 from app.core.config import get_settings
 from app.common.market_rules import is_large_move, is_large_move_question, normalize_large_move_threshold
 from app.services.symbol_resolver_service import SymbolResolverService
-from app.common.symbol_utils import to_stooq_symbol
+from app.common.symbol_utils import is_a_share_symbol, to_eastmoney_secid, to_stooq_symbol
 
 
 @dataclass
@@ -27,6 +28,9 @@ class MarketService:
     def __init__(self) -> None:
         self.symbol_resolver = SymbolResolverService()
         self.settings = get_settings()
+        self._headers = {"User-Agent": "Mozilla/5.0"}
+        self._eastmoney_session = requests.Session()
+        self._eastmoney_session.trust_env = False
         self.large_move_threshold_pct = normalize_large_move_threshold(
             self.settings.event_large_move_threshold_pct,
             default=3.0,
@@ -35,7 +39,7 @@ class MarketService:
     def analyze(self, question: str, symbol: Optional[str]) -> MarketAnalysis:
         resolved_symbol = symbol or self.symbol_resolver.resolve(question)
         if not resolved_symbol:
-            raise ValueError("未识别到股票代码，请补充更明确的公司名称或交易代码（如 BABA、1810.HK）。")
+            raise ValueError("未识别到股票代码，请补充更明确的公司名称或交易代码（如 BABA、1810.HK、600519.SS）。")
 
         history, data_provider, ticker = self._fetch_history_with_fallback(resolved_symbol)
         if history.empty:
@@ -136,6 +140,7 @@ class MarketService:
         self, symbol: str
     ) -> tuple[pd.DataFrame, str, Optional[yf.Ticker]]:
         ticker = yf.Ticker(symbol)
+        is_a_share = is_a_share_symbol(symbol)
 
         max_attempts = max(1, int(self.settings.external_api_max_attempts))
         retry_delay_seconds = max(0.2, float(self.settings.external_api_backoff_ms) / 1000)
@@ -147,11 +152,86 @@ class MarketService:
             except Exception:
                 sleep(retry_delay_seconds)
 
+        if is_a_share:
+            eastmoney_history = self._fetch_history_eastmoney(symbol)
+            if not eastmoney_history.empty:
+                return eastmoney_history, "eastmoney", None
+
         stooq_history = self._fetch_history_stooq(symbol)
         if not stooq_history.empty:
             return stooq_history, "stooq", None
 
         return pd.DataFrame(), "none", None
+
+    def _fetch_history_eastmoney(self, symbol: str) -> pd.DataFrame:
+        secid = to_eastmoney_secid(symbol)
+        if not secid:
+            return pd.DataFrame()
+        payload = None
+        params = {
+            "secid": secid,
+            "fields1": "f1,f2,f3,f4,f5,f6",
+            "fields2": "f51,f52,f53,f54,f55,f56,f57,f58",
+            "klt": "101",
+            "fqt": "1",
+            "lmt": "120",
+            "end": "20500101",
+        }
+        max_attempts = max(1, int(self.settings.external_api_max_attempts))
+        retry_delay_seconds = max(0.2, float(self.settings.external_api_backoff_ms) / 1000)
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = self._eastmoney_session.get(
+                    "https://push2his.eastmoney.com/api/qt/stock/kline/get",
+                    params=params,
+                    headers=self._headers,
+                    timeout=8.0,
+                )
+                if response.status_code == 200:
+                    parsed = response.json()
+                    if isinstance(parsed, dict):
+                        payload = parsed
+                        break
+            except Exception:
+                pass
+            if attempt < max_attempts:
+                sleep(retry_delay_seconds)
+        if payload is None:
+            return pd.DataFrame()
+
+        data = payload.get("data", {}) or {}
+        klines = data.get("klines", []) or []
+        if not klines:
+            return pd.DataFrame()
+
+        rows: List[Dict[str, Any]] = []
+        for line in klines:
+            if not isinstance(line, str):
+                continue
+            parts = line.split(",")
+            if len(parts) < 6:
+                continue
+            rows.append(
+                {
+                    "Date": parts[0],
+                    "Open": parts[1],
+                    "Close": parts[2],
+                    "High": parts[3],
+                    "Low": parts[4],
+                    "Volume": parts[5],
+                }
+            )
+        if not rows:
+            return pd.DataFrame()
+
+        frame = pd.DataFrame(rows)
+        frame["Date"] = pd.to_datetime(frame["Date"], errors="coerce")
+        for col in ["Open", "High", "Low", "Close", "Volume"]:
+            frame[col] = pd.to_numeric(frame[col], errors="coerce")
+        frame = frame.dropna(subset=["Date", "Close"]).sort_values("Date")
+        if frame.empty:
+            return pd.DataFrame()
+        return frame.set_index("Date").tail(90)
 
     def _fetch_history_stooq(self, symbol: str) -> pd.DataFrame:
         stooq_symbol = to_stooq_symbol(symbol)
@@ -231,9 +311,13 @@ class MarketService:
     def _safe_currency(
         self, ticker: Optional[yf.Ticker], symbol: str, data_provider: str
     ) -> str:
+        if data_provider == "eastmoney":
+            return "CNY"
         if data_provider == "stooq":
             if symbol.endswith(".HK"):
                 return "HKD"
+            if symbol.endswith((".SS", ".SZ")):
+                return "CNY"
             if symbol.endswith(".US") or symbol.isalpha():
                 return "USD"
             return "N/A"
@@ -246,6 +330,21 @@ class MarketService:
             return "N/A"
 
     def _build_market_source(self, symbol: str, data_provider: str) -> Dict[str, Any]:
+        if data_provider == "eastmoney":
+            normalized_symbol = symbol.upper()
+            if normalized_symbol.endswith(".SS"):
+                em_path = f"sh{normalized_symbol.split('.')[0]}"
+            elif normalized_symbol.endswith(".SZ"):
+                em_path = f"sz{normalized_symbol.split('.')[0]}"
+            else:
+                em_path = normalized_symbol
+            return {
+                "source_type": "market",
+                "title": f"{symbol} - Eastmoney Market Data (A-share Fallback)",
+                "content": "OHLCV daily history from Eastmoney push2his API",
+                "url": f"https://quote.eastmoney.com/{em_path}.html",
+                "score": None,
+            }
         if data_provider == "stooq":
             return {
                 "source_type": "market",
@@ -651,6 +750,8 @@ class MarketService:
     ) -> float:
         if data_provider == "yahoo":
             score = 0.78
+        elif data_provider == "eastmoney":
+            score = 0.74
         elif data_provider == "stooq":
             score = 0.68
         else:

@@ -4,8 +4,16 @@ from functools import lru_cache
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import quote
 
+import requests
+
 from app.common.http_client import get_http_client
-from app.common.symbol_utils import extract_explicit_symbol, normalize_symbol, to_stooq_symbol
+from app.common.symbol_utils import (
+    extract_explicit_symbol,
+    is_a_share_symbol,
+    normalize_symbol,
+    to_eastmoney_secid,
+    to_stooq_symbol,
+)
 try:
     from duckduckgo_search import DDGS
 except Exception:
@@ -16,6 +24,8 @@ class SymbolResolverService:
     def __init__(self) -> None:
         self._headers = {"User-Agent": "Mozilla/5.0"}
         self._http_client = get_http_client()
+        self._eastmoney_session = requests.Session()
+        self._eastmoney_session.trust_env = False
         self._token_stopwords = {
             "HTTP",
             "HTTPS",
@@ -96,6 +106,10 @@ class SymbolResolverService:
             "日",
             "月",
             "年",
+            "A股",
+            "沪深",
+            "上证",
+            "深证",
             "的",
         ]
 
@@ -159,6 +173,8 @@ class SymbolResolverService:
             score = 10.0
             if exchange in {"NASDAQ", "NYSE", "HK"}:
                 score += 3.0
+            if symbol.endswith((".SS", ".SZ")):
+                score += 4.5
             if query and query in name:
                 score += 3.0
             if any(flag in name for flag in ["ETF", "期权", "期货", "做多", "做空", "杠杆"]):
@@ -254,6 +270,8 @@ class SymbolResolverService:
 
     @lru_cache(maxsize=2048)
     def _is_valid_symbol(self, symbol: str) -> bool:
+        if is_a_share_symbol(symbol):
+            return self._is_valid_a_share_symbol(symbol)
         stooq_symbol = to_stooq_symbol(symbol)
         url = f"https://stooq.com/q/l/?s={quote(stooq_symbol)}&i=d"
         raw_response = self._http_client.get_text(url, headers=self._headers, timeout=4.5)
@@ -269,6 +287,40 @@ class SymbolResolverService:
         close_val = parts[6] if len(parts) > 6 else ""
         return bool(close_val and close_val.lower() != "nan")
 
+    def _is_valid_a_share_symbol(self, symbol: str) -> bool:
+        secid = to_eastmoney_secid(symbol)
+        if not secid:
+            return False
+        params = {
+            "secid": secid,
+            "fields1": "f1,f2,f3,f4,f5,f6",
+            "fields2": "f51,f52,f53,f54,f55,f56,f57,f58",
+            "klt": "101",
+            "fqt": "1",
+            "lmt": "2",
+            "end": "20500101",
+        }
+        for _ in range(2):
+            try:
+                response = self._eastmoney_session.get(
+                    "https://push2his.eastmoney.com/api/qt/stock/kline/get",
+                    params=params,
+                    headers=self._headers,
+                    timeout=6.0,
+                )
+                if response.status_code != 200:
+                    continue
+                payload = response.json()
+                if not isinstance(payload, dict):
+                    continue
+                data = payload.get("data", {}) or {}
+                klines = data.get("klines", []) or []
+                if klines:
+                    return True
+            except Exception:
+                continue
+        return False
+
     def _format_eastmoney_symbol(self, code: str, classify: str) -> Optional[str]:
         if classify == "HK":
             if not code.isdigit():
@@ -276,6 +328,14 @@ class SymbolResolverService:
             if int(code) > 9999:
                 return None
             return f"{int(code):04d}.HK"
+
+        if classify == "AStock":
+            if not re.fullmatch(r"\d{6}", code):
+                return None
+            normalized = normalize_symbol(code)
+            if normalized.endswith((".SS", ".SZ")):
+                return normalized
+            return None
 
         if classify == "UsStock":
             if re.fullmatch(r"[A-Z]{1,5}", code):

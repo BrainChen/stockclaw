@@ -4,7 +4,7 @@
 基于 `FastAPI + React + 市场数据 + 检索增强生成（RAG）` 的金融问答系统。  
 项目支持两类问题：
 
-- **资产行情问答**：围绕美股/港股代码，输出价格、涨跌、趋势与影响因素。
+- **资产行情问答**：围绕美股/港股/A股代码，输出价格、涨跌、趋势与影响因素。
 - **金融知识问答**：基于本地知识库 + Web 检索生成带引用的回答。
 
 ---
@@ -27,7 +27,8 @@
 ### 行情与符号解析
 
 - **yfinance + pandas + numpy**：主行情来源与指标计算（7/14/30 日涨跌、波动率、趋势）。
-- **Stooq 回退**：Yahoo 异常/限流时自动降级，保证可用性。
+- **A股 Eastmoney 回退**：A股在 Yahoo 异常/限流时自动降级到 Eastmoney 历史 K 线接口。
+- **Stooq 回退**：非 A 股场景下 Yahoo 异常/限流时自动降级，保证可用性。
 - **多源符号解析策略**：
   - 显式代码正则识别；
   - Eastmoney Suggest（主）；
@@ -84,9 +85,10 @@
 | 数据类型 | 来源 | 作用 | 备注 |
 |---|---|---|---|
 | 股票历史行情 | Yahoo Finance (`yfinance`) | 计算涨跌、趋势、波动率、图表序列 | 主数据源 |
+| A股行情回退 | Eastmoney Push2His API | A股在 Yahoo 失败时的降级数据 | A股专用回退 |
 | 行情回退 | Stooq CSV 接口 | Yahoo 失败时的降级数据 | 保证可用性 |
 | 公司相关新闻 | Yahoo Finance News | 影响因素线索（财报/宏观/公司） | 参与分析项生成 |
-| 股票代码解析 | Eastmoney Suggest API | 中文公司名/模糊名称映射 symbol | 主解析源 |
+| 股票代码解析 | Eastmoney Suggest API | 中文公司名/模糊名称映射 symbol（含 A/H/US） | 主解析源 |
 | 股票代码补充 | Yahoo Search API | 解析候选 symbol | 次解析源 |
 | 解析兜底 | DuckDuckGo Search | 极端场景补充 symbol 候选 | 仅兜底 |
 | 知识检索语料 | `app/data/knowledge_base/**` | 金融概念解释类问答 | 本地可维护 |
