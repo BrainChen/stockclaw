@@ -1,10 +1,15 @@
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 class ChatRequest(BaseModel):
-    question: str = Field(..., min_length=2, description="用户问题")
+    question: str = Field(
+        ...,
+        min_length=2,
+        description="用户问题",
+        validation_alias=AliasChoices("question", "query"),
+    )
 
 
 class SourceItem(BaseModel):

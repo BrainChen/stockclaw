@@ -1,7 +1,8 @@
 from pathlib import Path
+from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 
 from app.models.schemas import (
     ChatRequest,
@@ -40,9 +41,27 @@ def health() -> dict:
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(payload: ChatRequest) -> ChatResponse:
+def chat(
+    payload: ChatRequest,
+    format: Literal["json", "md"] = Query(
+        default="json",
+        description="返回格式：json 或 md（Markdown 文本）",
+    ),
+    accept: str | None = Header(default=None),
+) -> ChatResponse | PlainTextResponse:
     try:
-        return qa_service.ask(payload.question)
+        result = qa_service.ask(payload.question)
+        wants_markdown = format == "md" or (
+            format == "json"
+            and isinstance(accept, str)
+            and "text/markdown" in accept.lower()
+        )
+        if wants_markdown:
+            return PlainTextResponse(
+                content=result.answer,
+                media_type="text/markdown; charset=utf-8",
+            )
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:

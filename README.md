@@ -119,12 +119,23 @@
 ## 6. API 一览
 
 - `GET /api/health`：健康检查
-- `POST /api/chat`：统一问答入口
+- `POST /api/chat`：统一问答入口（默认返回 `application/json`）
+- `POST /api/chat?format=md`：返回 `text/markdown`（仅回答正文）
 - `GET /api/kb/stats`：知识库索引状态
 - `POST /api/kb/reindex`：重建知识库索引
 - `POST /api/kb/search`：知识库检索调试
 - `GET /api/kb/document?path=...`：下载/查看原文
 - `GET /api/kb/document/preview?path=...`：在线预览文档
+
+`/api/chat` 也支持通过 `Accept: text/markdown` 协商 Markdown 返回。例如：
+
+```bash
+curl -sS -X POST \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/markdown" \
+  -d '{"query":"通货膨胀的定义"}' \
+  http://127.0.0.1:8000/api/chat
+```
 
 ---
 
