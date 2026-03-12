@@ -3,18 +3,15 @@ import hashlib
 import pickle
 import re
 import threading
-import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
 import numpy as np
 import pandas as pd
-from scipy.sparse import csr_matrix, hstack
-from sklearn.decomposition import TruncatedSVD
-from sklearn.feature_extraction.text import TfidfVectorizer
 
 from app.core.config import get_settings
+from app.services.layers.knowledge.vector_search_service import VectorSearchService
 
 try:
     from pypdf import PdfReader
@@ -69,23 +66,7 @@ class RAGService:
         self.indexed_files = 0
         self.loaded_from_disk = False
         self.vector_backend = "faiss"
-        self.word_vectorizer = TfidfVectorizer(
-            ngram_range=(1, 2),
-            lowercase=True,
-            max_features=120000,
-        )
-        self.char_vectorizer = TfidfVectorizer(
-            analyzer="char_wb",
-            ngram_range=(2, 4),
-            lowercase=True,
-            max_features=150000,
-        )
-        self.word_matrix = None
-        self.char_matrix = None
-        self.combined_matrix: csr_matrix | None = None
-        self.svd_model: TruncatedSVD | None = None
-        self.faiss_index = None
-        self.embedding_dim = 0
+        self.vector_search = VectorSearchService()
         self._lock = threading.RLock()
         if not self._load_persisted_index():
             self.reindex(force=True)
@@ -120,11 +101,7 @@ class RAGService:
                 return self.get_stats()
 
             corpus = [self._chunk_to_corpus_text(chunk) for chunk in self.chunks]
-            self.word_matrix = self.word_vectorizer.fit_transform(corpus)
-            self.char_matrix = self.char_vectorizer.fit_transform(corpus)
-            self.combined_matrix = hstack([self.word_matrix, self.char_matrix], format="csr", dtype=np.float32)
-            dense_vectors = self._build_dense_embeddings(self.combined_matrix)
-            self._build_faiss_index(dense_vectors)
+            self.vector_search.build_index(corpus)
             corpus_signature = self._build_corpus_signature(file_markers=file_markers)
             self._persist_index(corpus_signature=corpus_signature)
             self.loaded_from_disk = False
@@ -139,36 +116,25 @@ class RAGService:
             "chunk_size": self.settings.kb_chunk_size,
             "chunk_overlap": self.settings.kb_chunk_overlap,
             "vector_backend": self.vector_backend,
-            "index_size": int(self.faiss_index.ntotal) if self.faiss_index is not None else 0,
-            "embedding_dim": self.embedding_dim,
+            "index_size": self.vector_search.index_size,
+            "embedding_dim": self.vector_search.embedding_dim,
             "index_dir": str(self.index_dir),
             "loaded_from_disk": self.loaded_from_disk,
         }
 
     def retrieve(self, query: str, top_k: int = 6, min_score: float = 0.08) -> List[Dict[str, Any]]:
         with self._lock:
-            if (
-                self.word_vectorizer is None
-                or self.char_vectorizer is None
-                or self.faiss_index is None
-                or self.faiss_index.ntotal == 0
-                or not self.chunks
-            ):
+            if not self.vector_search.ready or not self.chunks:
                 return []
 
             normalized_query = self._normalize_text(query)
             if not normalized_query:
                 return []
 
-            word_query = self.word_vectorizer.transform([normalized_query])
-            char_query = self.char_vectorizer.transform([normalized_query])
-            query_sparse = hstack([word_query, char_query], format="csr", dtype=np.float32)
-            query_vector = self._project_query_vector(query_sparse)
-            if query_vector.size == 0:
-                return []
-
             candidate_k = min(max(top_k * 8, top_k + 12), len(self.chunks))
-            distances, indices = self.faiss_index.search(query_vector, candidate_k)
+            distances, indices = self.vector_search.search(normalized_query, candidate_k)
+            if distances.size == 0 or indices.size == 0:
+                return []
             query_terms = self._extract_query_terms(normalized_query)
             keyword_bonus = self._keyword_overlap_bonus(query_terms) if query_terms else None
             title_bonus = self._title_overlap_bonus(query_terms) if query_terms else None
@@ -223,12 +189,7 @@ class RAGService:
         self._clear_vector_state()
 
     def _clear_vector_state(self) -> None:
-        self.word_matrix = None
-        self.char_matrix = None
-        self.combined_matrix = None
-        self.svd_model = None
-        self.faiss_index = None
-        self.embedding_dim = 0
+        self.vector_search.clear()
         self.loaded_from_disk = False
 
     def _iter_supported_files(self, directory: Path) -> Iterable[Path]:
@@ -377,59 +338,6 @@ class RAGService:
             candidate = max(candidate, idx)
         return candidate + 1 if candidate >= 0 else end
 
-    def _build_dense_embeddings(self, sparse_matrix: csr_matrix) -> np.ndarray:
-        if sparse_matrix.shape[0] == 0:
-            return np.zeros((0, 0), dtype=np.float32)
-
-        n_samples, n_features = sparse_matrix.shape
-        max_components = min(384, n_samples - 1, n_features - 1)
-        if max_components >= 64:
-            self.svd_model = TruncatedSVD(n_components=max_components, random_state=42)
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=RuntimeWarning)
-                dense_vectors = self.svd_model.fit_transform(sparse_matrix).astype(np.float32)
-        else:
-            self.svd_model = None
-            dense_vectors = sparse_matrix.toarray().astype(np.float32)
-
-        if dense_vectors.ndim == 1:
-            dense_vectors = dense_vectors.reshape(1, -1)
-        dense_vectors = np.ascontiguousarray(dense_vectors, dtype=np.float32)
-        if dense_vectors.shape[1] == 0:
-            return np.zeros((0, 0), dtype=np.float32)
-
-        dense_vectors = np.nan_to_num(dense_vectors, nan=0.0, posinf=0.0, neginf=0.0)
-        faiss.normalize_L2(dense_vectors)
-        return dense_vectors
-
-    def _project_query_vector(self, sparse_query: csr_matrix) -> np.ndarray:
-        if sparse_query.shape[0] == 0:
-            return np.zeros((0, 0), dtype=np.float32)
-
-        if self.svd_model is not None:
-            dense_query = self.svd_model.transform(sparse_query).astype(np.float32)
-        else:
-            dense_query = sparse_query.toarray().astype(np.float32)
-
-        if dense_query.ndim == 1:
-            dense_query = dense_query.reshape(1, -1)
-        dense_query = np.ascontiguousarray(dense_query, dtype=np.float32)
-        if dense_query.shape[1] == 0:
-            return np.zeros((0, 0), dtype=np.float32)
-        dense_query = np.nan_to_num(dense_query, nan=0.0, posinf=0.0, neginf=0.0)
-        faiss.normalize_L2(dense_query)
-        return dense_query
-
-    def _build_faiss_index(self, dense_vectors: np.ndarray) -> None:
-        if dense_vectors.size == 0 or dense_vectors.shape[1] == 0:
-            self.faiss_index = None
-            self.embedding_dim = 0
-            return
-
-        self.embedding_dim = int(dense_vectors.shape[1])
-        self.faiss_index = faiss.IndexFlatIP(self.embedding_dim)
-        self.faiss_index.add(dense_vectors)
-
     def _build_file_marker(self, file_path: Path) -> str:
         try:
             stat = file_path.stat()
@@ -454,7 +362,7 @@ class RAGService:
         return digest.hexdigest()
 
     def _persist_index(self, corpus_signature: str) -> None:
-        if self.faiss_index is None:
+        if not self.vector_search.ready:
             return
 
         self.index_dir.mkdir(parents=True, exist_ok=True)
@@ -462,16 +370,14 @@ class RAGService:
         objects_tmp = self.objects_path.with_suffix(self.objects_path.suffix + ".tmp")
         meta_tmp = self.meta_path.with_suffix(self.meta_path.suffix + ".tmp")
 
-        faiss.write_index(self.faiss_index, str(faiss_tmp))
+        faiss.write_index(self.vector_search.faiss_index, str(faiss_tmp))
         with objects_tmp.open("wb") as fp:
             pickle.dump(
                 {
-                    "word_vectorizer": self.word_vectorizer,
-                    "char_vectorizer": self.char_vectorizer,
-                    "svd_model": self.svd_model,
+                    "vector_state": self.vector_search.export_state(),
                     "chunks": self.chunks,
                     "indexed_files": self.indexed_files,
-                    "embedding_dim": self.embedding_dim,
+                    "embedding_dim": self.vector_search.embedding_dim,
                 },
                 fp,
                 protocol=pickle.HIGHEST_PROTOCOL,
@@ -487,7 +393,7 @@ class RAGService:
             "indexed_files": self.indexed_files,
             "indexed_chunks": len(self.chunks),
             "vector_backend": self.vector_backend,
-            "embedding_dim": self.embedding_dim,
+            "embedding_dim": self.vector_search.embedding_dim,
         }
         meta_tmp.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -524,26 +430,26 @@ class RAGService:
                     payload = pickle.load(fp)
 
                 loaded_chunks = payload.get("chunks") or []
-                loaded_word_vectorizer = payload.get("word_vectorizer")
-                loaded_char_vectorizer = payload.get("char_vectorizer")
-                loaded_svd_model = payload.get("svd_model")
+                vector_state = payload.get("vector_state")
+                if not isinstance(vector_state, dict):
+                    vector_state = {
+                        "word_vectorizer": payload.get("word_vectorizer"),
+                        "char_vectorizer": payload.get("char_vectorizer"),
+                        "svd_model": payload.get("svd_model"),
+                        "embedding_dim": payload.get("embedding_dim"),
+                    }
                 loaded_indexed_files = int(payload.get("indexed_files", 0))
 
-                if loaded_word_vectorizer is None or loaded_char_vectorizer is None:
+                if vector_state.get("word_vectorizer") is None or vector_state.get("char_vectorizer") is None:
                     return False
                 if len(loaded_chunks) != int(loaded_faiss_index.ntotal):
                     return False
 
-                self.word_vectorizer = loaded_word_vectorizer
-                self.char_vectorizer = loaded_char_vectorizer
-                self.svd_model = loaded_svd_model
+                loaded_ok = self.vector_search.load_state(vector_state, loaded_faiss_index)
+                if not loaded_ok:
+                    return False
                 self.chunks = loaded_chunks
                 self.indexed_files = loaded_indexed_files
-                self.word_matrix = None
-                self.char_matrix = None
-                self.combined_matrix = None
-                self.faiss_index = loaded_faiss_index
-                self.embedding_dim = int(loaded_faiss_index.d)
                 self.loaded_from_disk = True
                 return True
             except Exception:

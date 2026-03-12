@@ -18,6 +18,7 @@ from app.core.config import get_settings
 from app.common.logger import get_logger, kv
 from app.common.market_rules import is_large_move, is_large_move_question, normalize_large_move_threshold
 from app.models.query_dsl import QueryDSL
+from app.services.layers.asset.news_analyzer_service import NewsAnalyzerService
 from app.services.layers.asset.symbol_resolver_service import SymbolResolverService
 from app.common.symbol_utils import is_a_share_symbol, normalize_symbol, to_eastmoney_secid, to_stooq_symbol
 
@@ -41,6 +42,9 @@ class MarketService:
         self.large_move_threshold_pct = normalize_large_move_threshold(
             self.settings.event_large_move_threshold_pct,
             default=3.0,
+        )
+        self.news_analyzer = NewsAnalyzerService(
+            large_move_threshold_pct=self.large_move_threshold_pct,
         )
 
     def analyze(
@@ -95,9 +99,9 @@ class MarketService:
         actual_chart_window_days = len(price_series)
 
         should_fetch_news = ticker is not None and (query_dsl.need_news if query_dsl else True)
-        news_items = self._fetch_news(ticker, resolved_symbol) if should_fetch_news else []
+        news_items = self.news_analyzer.fetch_news(ticker, resolved_symbol) if should_fetch_news else []
         currency = self._safe_currency(ticker, resolved_symbol, data_provider)
-        confidence = self._estimate_confidence(
+        confidence = self.news_analyzer.estimate_confidence(
             data_provider=data_provider,
             news_items=news_items,
             event_snapshot=event_snapshot,
@@ -786,13 +790,13 @@ class MarketService:
         used_titles: set[str] = set()
 
         if event_date:
-            event_signal = self._build_event_signal(
+            event_signal = self.news_analyzer.build_event_signal(
                 question=question, event_date=event_date, event_snapshot=event_snapshot
             )
             if event_signal:
                 analysis.append(event_signal)
 
-            related_news = self._find_news_near_event(
+            related_news = self.news_analyzer.find_news_near_event(
                 news_items=news_items,
                 event_date=event_date,
                 used_titles=used_titles,
@@ -800,7 +804,7 @@ class MarketService:
             )
             if related_news:
                 used_titles.add(related_news["title"])
-                analysis.append(f"事件窗口新闻：{self._format_news_brief(related_news)}。")
+                analysis.append(f"事件窗口新闻：{self.news_analyzer.format_news_brief(related_news)}。")
             else:
                 analysis.append("事件窗口新闻：未检索到事件日前后2日的明确公司新闻，证据不足。")
         else:
@@ -812,13 +816,13 @@ class MarketService:
         if volume_signal:
             analysis.append(volume_signal)
 
-        earnings_signal = self._build_earnings_signal(news_items, ticker, used_titles)
+        earnings_signal = self.news_analyzer.build_earnings_signal(news_items, ticker, used_titles)
         analysis.append(earnings_signal)
 
-        macro_signal = self._build_macro_signal(news_items, used_titles)
+        macro_signal = self.news_analyzer.build_macro_signal(news_items, used_titles)
         analysis.append(macro_signal)
 
-        company_news_signal = self._build_company_news_signal(news_items, used_titles)
+        company_news_signal = self.news_analyzer.build_company_news_signal(news_items, used_titles)
         if company_news_signal:
             analysis.append(company_news_signal)
 

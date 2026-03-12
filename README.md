@@ -11,7 +11,93 @@
 
 ## 1. 系统架构图
 
-![系统架构图](./arch.png)
+```mermaid
+flowchart TB
+
+%% ---------- Client Layer ----------
+subgraph Client Layer
+U[User / Browser]
+FE[React + Vite Frontend]
+end
+
+%% ---------- API Layer ----------
+subgraph API Layer
+API[FastAPI Gateway\n/api/chat]
+end
+
+%% ---------- Orchestration Layer ----------
+subgraph Orchestration Layer
+ORCH[Financial QA Orchestrator]
+ROUTER[Query Interpreter\nQuery Router]
+end
+
+%% ---------- Domain Services ----------
+subgraph Domain Services
+
+subgraph Market Intelligence
+ASSET[Market Service]
+SR[Symbol Resolver]
+NEWS[News Analyzer]
+end
+
+subgraph Knowledge Intelligence
+RAG[RAG Service]
+WEB[Web Search Service]
+VEC[Vector Search\nTF-IDF + SVD + FAISS]
+end
+
+end
+
+%% ---------- LLM Layer ----------
+subgraph LLM Layer
+LLM[LLM Gateway\nOpenRouter]
+end
+
+%% ---------- External Data ----------
+subgraph External Data Sources
+AK[(AKShare)]
+YH[(Yahoo Finance)]
+EM[(Eastmoney)]
+ST[(Stooq)]
+DDG[(DuckDuckGo)]
+KBFS[(Local Knowledge Docs)]
+end
+
+%% ---------- Flow ----------
+
+U --> FE
+FE --> API
+API --> ORCH
+ORCH --> ROUTER
+
+ROUTER -->|market query| ASSET
+ROUTER -->|knowledge query| RAG
+
+%% Market flow
+ASSET --> SR
+SR --> EM
+SR --> YH
+
+ASSET --> AK
+ASSET --> YH
+ASSET --> ST
+ASSET --> NEWS
+
+%% Knowledge flow
+RAG --> KBFS
+RAG --> VEC
+RAG --> WEB
+WEB --> DDG
+
+%% LLM reasoning
+ASSET --> LLM
+RAG --> LLM
+
+%% Response
+LLM --> ORCH
+ORCH --> API
+API --> FE
+```
 
 ---
 
@@ -228,9 +314,11 @@ python scripts/reindex_kb.py
 │   │       │   └── router_service.py
 │   │       ├── asset/
 │   │       │   ├── market_service.py
+│   │       │   ├── news_analyzer_service.py
 │   │       │   └── symbol_resolver_service.py
 │   │       ├── knowledge/
 │   │       │   ├── rag_service.py
+│   │       │   ├── vector_search_service.py
 │   │       │   └── web_search_service.py
 │   │       └── integration/llm_service.py
 │   └── data/knowledge_base/**
