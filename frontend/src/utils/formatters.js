@@ -32,6 +32,13 @@ export function formatDisplayValue(value) {
   if (value === null || value === undefined || value === "") {
     return "-";
   }
+  if (Array.isArray(value) || (typeof value === "object" && value !== null)) {
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  }
   if (typeof value === "number") {
     return Number.isInteger(value) ? value.toString() : value.toFixed(4);
   }

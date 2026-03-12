@@ -346,12 +346,23 @@ export default function App() {
                   <div className="block">
                     <h3>客观数据</h3>
                     <div className="metric-grid">
-                      {objectiveItems.map(([key, value]) => (
-                        <article className="metric-item" key={key}>
-                          <p>{getObjectiveLabel(key)}</p>
-                          <strong>{formatObjectiveValue(key, value)}</strong>
-                        </article>
-                      ))}
+                      {objectiveItems.map(([key, value]) => {
+                        const formattedValue = formatObjectiveValue(key, value);
+                        const isStructuredValue =
+                          key === "query_dsl" ||
+                          key === "query_dsl_slots" ||
+                          (typeof value === "object" && value !== null);
+                        return (
+                          <article className="metric-item" key={key}>
+                            <p>{getObjectiveLabel(key)}</p>
+                            {isStructuredValue ? (
+                              <pre className="metric-raw">{formattedValue}</pre>
+                            ) : (
+                              <strong>{formattedValue}</strong>
+                            )}
+                          </article>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

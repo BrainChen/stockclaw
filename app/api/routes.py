@@ -1,9 +1,12 @@
 from pathlib import Path
+from time import perf_counter
 from typing import Literal
+from uuid import uuid4
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 
+from app.common.logger import get_logger, kv, preview_text
 from app.models.schemas import (
     ChatRequest,
     ChatResponse,
@@ -12,10 +15,11 @@ from app.models.schemas import (
     KBSearchResponse,
     KBStatsResponse,
 )
-from app.services.answer_service import FinancialQAService
+from app.services.layers.orchestration.answer_service import FinancialQAService
 
 router = APIRouter()
 qa_service = FinancialQAService()
+logger = get_logger(__name__)
 
 
 def _resolve_kb_file(path: str) -> Path:
@@ -49,12 +53,35 @@ def chat(
     ),
     accept: str | None = Header(default=None),
 ) -> ChatResponse | PlainTextResponse:
+    request_id = uuid4().hex[:12]
+    started_at = perf_counter()
+    logger.info(
+        "chat request %s",
+        kv(
+            request_id=request_id,
+            format=format,
+            accept=accept or "",
+            question=preview_text(payload.question, max_len=120),
+        ),
+    )
     try:
         result = qa_service.ask(payload.question)
         wants_markdown = format == "md" or (
             format == "json"
             and isinstance(accept, str)
             and "text/markdown" in accept.lower()
+        )
+        elapsed_ms = int((perf_counter() - started_at) * 1000)
+        logger.info(
+            "chat response %s",
+            kv(
+                request_id=request_id,
+                route=result.route,
+                symbol=result.symbol or "",
+                source_count=len(result.sources),
+                latency_ms=elapsed_ms,
+                markdown=wants_markdown,
+            ),
         )
         if wants_markdown:
             return PlainTextResponse(
@@ -63,8 +90,18 @@ def chat(
             )
         return result
     except ValueError as exc:
+        elapsed_ms = int((perf_counter() - started_at) * 1000)
+        logger.warning(
+            "chat validation failed %s",
+            kv(request_id=request_id, latency_ms=elapsed_ms, error=str(exc)),
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
+        elapsed_ms = int((perf_counter() - started_at) * 1000)
+        logger.exception(
+            "chat internal error %s",
+            kv(request_id=request_id, latency_ms=elapsed_ms, error=str(exc)),
+        )
         raise HTTPException(status_code=500, detail=f"系统异常: {exc}") from exc
 
 
@@ -72,8 +109,10 @@ def chat(
 def kb_stats() -> KBStatsResponse:
     try:
         stats = qa_service.kb_stats()
+        logger.info("kb stats %s", kv(indexed_files=stats.get("indexed_files"), indexed_chunks=stats.get("indexed_chunks")))
         return KBStatsResponse(**stats)
     except Exception as exc:
+        logger.exception("kb stats failed %s", kv(error=str(exc)))
         raise HTTPException(status_code=500, detail=f"知识库统计失败: {exc}") from exc
 
 
@@ -81,20 +120,27 @@ def kb_stats() -> KBStatsResponse:
 def kb_reindex(payload: KBReindexRequest | None = None) -> KBStatsResponse:
     try:
         force = payload.force if payload else True
+        logger.info("kb reindex start %s", kv(force=force))
         stats = qa_service.reindex_kb(force=force)
+        logger.info("kb reindex done %s", kv(indexed_files=stats.get("indexed_files"), indexed_chunks=stats.get("indexed_chunks")))
         return KBStatsResponse(**stats)
     except Exception as exc:
+        logger.exception("kb reindex failed %s", kv(error=str(exc)))
         raise HTTPException(status_code=500, detail=f"知识库重建失败: {exc}") from exc
 
 
 @router.post("/kb/search", response_model=KBSearchResponse)
 def kb_search(payload: KBSearchRequest) -> KBSearchResponse:
     try:
+        logger.info("kb search request %s", kv(query=preview_text(payload.query, max_len=100), top_k=payload.top_k))
         hits = qa_service.search_kb(query=payload.query, top_k=payload.top_k)
+        logger.info("kb search response %s", kv(total_hits=len(hits)))
         return KBSearchResponse(query=payload.query, total_hits=len(hits), hits=hits)
     except ValueError as exc:
+        logger.warning("kb search validation failed %s", kv(error=str(exc)))
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
+        logger.exception("kb search failed %s", kv(error=str(exc)))
         raise HTTPException(status_code=500, detail=f"知识库检索失败: {exc}") from exc
 
 

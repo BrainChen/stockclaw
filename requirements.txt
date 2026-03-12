@@ -4,6 +4,7 @@ pydantic==2.10.6
 pandas==2.2.3
 numpy==2.2.4
 yfinance==0.2.61
+akshare==1.18.38
 scikit-learn==1.6.1
 faiss-cpu>=1.13.0,<2
 httpx==0.28.1

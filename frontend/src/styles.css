@@ -529,6 +529,22 @@ body {
   margin-top: 4px;
   font-size: 16px;
   color: #243263;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.metric-raw {
+  margin: 6px 0 0;
+  padding: 8px 9px;
+  border-radius: 8px;
+  background: #eef3ff;
+  color: #21356b;
+  font-size: 12px;
+  line-height: 1.55;
+  font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .source-list {

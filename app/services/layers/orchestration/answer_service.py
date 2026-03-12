@@ -1,28 +1,45 @@
 import re
+from time import perf_counter
 from typing import Dict, List
 
+from app.common.logger import get_logger, kv, preview_text
 from app.models.schemas import ChatResponse, SourceItem
-from app.services.llm_service import LLMService
+from app.services.layers.integration.llm_service import LLMService
+from app.models.query_dsl import QueryDSL
 from app.common.market_rules import is_large_move, is_large_move_question, normalize_large_move_threshold
-from app.services.market_service import MarketService
-from app.services.rag_service import RAGService
-from app.services.router_service import QueryRouter
-from app.services.web_search_service import WebSearchService
+from app.services.layers.asset.market_service import MarketService
+from app.services.layers.routing.query_interpreter_service import QueryInterpreterService
+from app.services.layers.knowledge.rag_service import RAGService
+from app.services.layers.knowledge.web_search_service import WebSearchService
 
 
 class FinancialQAService:
     def __init__(self) -> None:
-        self.router = QueryRouter()
+        self.query_interpreter = QueryInterpreterService()
         self.market_service = MarketService()
         self.rag_service = RAGService()
         self.web_search_service = WebSearchService()
         self.llm_service = LLMService()
+        self.logger = get_logger(__name__)
 
     def ask(self, question: str) -> ChatResponse:
-        route_result = self.router.route(question)
-        if route_result.route == "asset":
-            return self._answer_asset(question, route_result.symbol)
-        return self._answer_knowledge(question)
+        started_at = perf_counter()
+        self.logger.info("qa ask start %s", kv(question=preview_text(question, max_len=120)))
+        query_dsl = self.query_interpreter.parse(question)
+        self.logger.info(
+            "qa route resolved %s",
+            kv(route=query_dsl.route, symbol=query_dsl.symbol or "", dsl=query_dsl.to_expression()),
+        )
+        if query_dsl.route == "asset":
+            response = self._answer_asset(question, query_dsl.symbol, query_dsl)
+        else:
+            response = self._answer_knowledge(question)
+        elapsed_ms = int((perf_counter() - started_at) * 1000)
+        self.logger.info(
+            "qa ask done %s",
+            kv(route=response.route, symbol=response.symbol or "", source_count=len(response.sources), latency_ms=elapsed_ms),
+        )
+        return response
 
     def kb_stats(self) -> dict:
         return self.rag_service.get_stats()
@@ -36,15 +53,23 @@ class FinancialQAService:
             raise ValueError("检索词长度至少为 2 个字符。")
         return self.rag_service.retrieve(normalized_query, top_k=top_k)
 
-    def _answer_asset(self, question: str, symbol: str | None) -> ChatResponse:
-        analysis_result = self.market_service.analyze(question=question, symbol=symbol)
+    def _answer_asset(self, question: str, symbol: str | None, query_dsl: QueryDSL) -> ChatResponse:
+        self.logger.info(
+            "asset flow start %s",
+            kv(symbol=symbol or "", window_days=query_dsl.window_days, event_date=query_dsl.event_date),
+        )
+        analysis_result = self.market_service.analyze(
+            question=question,
+            symbol=symbol,
+            query_dsl=query_dsl,
+        )
         answer = self._generate_asset_answer(
             question=question,
             symbol=analysis_result.symbol,
             objective_data=analysis_result.objective_data,
             analysis=analysis_result.analysis,
         )
-        return ChatResponse(
+        response = ChatResponse(
             route="asset",
             symbol=analysis_result.symbol,
             answer=answer,
@@ -52,11 +77,25 @@ class FinancialQAService:
             analysis=analysis_result.analysis,
             sources=[SourceItem(**source) for source in analysis_result.sources],
         )
+        self.logger.info(
+            "asset flow done %s",
+            kv(
+                symbol=response.symbol or "",
+                data_provider=response.objective_data.get("data_provider"),
+                fallback_used=response.objective_data.get("fallback_used"),
+                source_count=len(response.sources),
+            ),
+        )
+        return response
 
     def _answer_knowledge(self, question: str) -> ChatResponse:
         kb_hits = self.rag_service.retrieve(question, top_k=6, min_score=0.06)
         web_hits = self.web_search_service.search(question, max_results=4)
         unified_sources = self._build_knowledge_sources(kb_hits=kb_hits, web_hits=web_hits)
+        self.logger.info(
+            "knowledge retrieval %s",
+            kv(kb_hits=len(kb_hits), web_hits=len(web_hits), merged_sources=len(unified_sources)),
+        )
 
         answer = self._generate_knowledge_answer(question=question, sources=unified_sources)
         sources = [SourceItem(**item) for item in unified_sources]

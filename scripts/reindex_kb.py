@@ -5,7 +5,7 @@ project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from app.services.rag_service import RAGService
+from app.services.layers.knowledge.rag_service import RAGService
 
 
 def main() -> None:

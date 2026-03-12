@@ -23,11 +23,12 @@
 - **Pydantic v2**：统一请求/响应模型，前后端字段契约明确（如 `ChatResponse`、`SourceItem`）。
 - **httpx**：统一外部 HTTP 调用（符号解析、搜索、LLM）。
 - **Resilient HTTP Client**：对外部接口统一重试与指数退避（可通过环境变量调节）。
+- **Query DSL Interpreter**：将“近期、大涨、事件日”等自然语言意图解析为结构化 DSL 槽位，驱动行情 API 调用参数。
 
 ### 行情与符号解析
 
-- **yfinance + pandas + numpy**：主行情来源与指标计算（7/14/30 日涨跌、波动率、趋势）。
-- **A股 Eastmoney 回退**：A股在 Yahoo 异常/限流时自动降级到 Eastmoney 历史 K 线接口。
+- **AKShare + yfinance + pandas + numpy**：行情数据链路支持 AKShare 优先，结合 yfinance 与指标计算（7/14/30 日涨跌、波动率、趋势）。
+- **A股 Eastmoney 回退**：A股在 AKShare / Yahoo 异常或限流时自动降级到 Eastmoney 历史 K 线接口。
 - **Stooq 回退**：非 A 股场景下 Yahoo 异常/限流时自动降级，保证可用性。
 - **多源符号解析策略**：
   - 显式代码正则识别；
@@ -84,7 +85,8 @@
 
 | 数据类型 | 来源 | 作用 | 备注 |
 |---|---|---|---|
-| 股票历史行情 | Yahoo Finance (`yfinance`) | 计算涨跌、趋势、波动率、图表序列 | 主数据源 |
+| 股票历史行情（主） | AKShare | 统一拉取 A 股 / 港股 / 美股日线 OHLCV | 默认优先数据源 |
+| 股票历史行情 | Yahoo Finance (`yfinance`) | 计算涨跌、趋势、波动率、图表序列 | AKShare 不可用时回退 |
 | A股行情回退 | Eastmoney Push2His API | A股在 Yahoo 失败时的降级数据 | A股专用回退 |
 | 行情回退 | Stooq CSV 接口 | Yahoo 失败时的降级数据 | 保证可用性 |
 | 公司相关新闻 | Yahoo Finance News | 影响因素线索（财报/宏观/公司） | 参与分析项生成 |
@@ -101,6 +103,7 @@
 ## 5. 关键能力概览
 
 - **问题路由**：`QueryRouter` 将问题分为 `asset` 与 `knowledge`。
+- **Query DSL 解释**：`QueryInterpreterService` 将自然语言映射为结构化意图（symbol / window_days / event_date / metrics）。
 - **资产分析**：
   - 支持显式周期识别（如“近 30 天”）；
   - 支持事件日核验（交易日/非交易日、前后交易日提示）；
@@ -164,9 +167,13 @@ cp .env.example .env.local
 重点配置：
 
 - `OPENROUTER_API_KEY`：可选；为空时启用后端模板回答。
+- `LOG_LEVEL`：后端日志级别（如 `DEBUG/INFO/WARNING/ERROR`）。
+- `QUERY_INTERPRETER_USE_LLM`：是否启用 OpenRouter 大模型解析查询 DSL；系统默认“API/规则优先，LLM 仅在歧义场景介入”。
 - `WEB_SEARCH_ENABLED`：是否开启 Web 检索补充。
 - `KB_*`：知识库路径、分块参数、索引目录。
 - `EXTERNAL_API_*`：外部 API 最大重试次数与退避间隔。
+- `AKSHARE_*`：是否启用 AKShare 及复权模式。
+- `SYMBOL_RESOLVER_*`：符号解析链路开关（Yahoo 搜索 / Web 兜底 / 交易校验），默认仅 Eastmoney API。
 - `EVENT_LARGE_MOVE_THRESHOLD_PCT`：大涨/大跌阈值配置。
 
 ### 7.3 启动
@@ -206,18 +213,26 @@ python scripts/reindex_kb.py
 │   ├── api/routes.py
 │   ├── common/
 │   │   ├── http_client.py
+│   │   ├── logger.py
 │   │   ├── market_rules.py
 │   │   └── symbol_utils.py
 │   ├── core/config.py
-│   ├── models/schemas.py
+│   ├── models/
+│   │   ├── query_dsl.py
+│   │   └── schemas.py
 │   ├── services/
-│   │   ├── answer_service.py
-│   │   ├── llm_service.py
-│   │   ├── market_service.py
-│   │   ├── rag_service.py
-│   │   ├── router_service.py
-│   │   ├── symbol_resolver_service.py
-│   │   └── web_search_service.py
+│   │   └── layers/
+│   │       ├── orchestration/answer_service.py
+│   │       ├── routing/
+│   │       │   ├── query_interpreter_service.py
+│   │       │   └── router_service.py
+│   │       ├── asset/
+│   │       │   ├── market_service.py
+│   │       │   └── symbol_resolver_service.py
+│   │       ├── knowledge/
+│   │       │   ├── rag_service.py
+│   │       │   └── web_search_service.py
+│   │       └── integration/llm_service.py
 │   └── data/knowledge_base/**
 ├── frontend/src
 │   ├── App.jsx

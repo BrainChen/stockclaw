@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 from typing import Literal, Optional
 
-from app.services.symbol_resolver_service import SymbolResolverService
+from app.services.layers.asset.symbol_resolver_service import SymbolResolverService
 from app.common.symbol_utils import extract_explicit_symbol
 
 

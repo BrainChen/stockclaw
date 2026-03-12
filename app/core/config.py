@@ -13,6 +13,7 @@ load_dotenv(".env.local", override=True)
 class Settings:
     app_name: str = "Financial Asset QA System"
     app_env: str = os.getenv("APP_ENV", "dev")
+    log_level: str = os.getenv("LOG_LEVEL", "INFO")
     host: str = os.getenv("HOST", "0.0.0.0")
     port: int = int(os.getenv("PORT", "8000"))
 
@@ -32,6 +33,18 @@ class Settings:
     external_api_max_attempts: int = int(os.getenv("EXTERNAL_API_MAX_ATTEMPTS", "3"))
     external_api_backoff_ms: int = int(os.getenv("EXTERNAL_API_BACKOFF_MS", "250"))
     event_large_move_threshold_pct: float = float(os.getenv("EVENT_LARGE_MOVE_THRESHOLD_PCT", "3.0"))
+    query_interpreter_use_llm: bool = os.getenv("QUERY_INTERPRETER_USE_LLM", "true").lower() == "true"
+    akshare_enabled: bool = os.getenv("AKSHARE_ENABLED", "true").lower() == "true"
+    akshare_adjust: str = os.getenv("AKSHARE_ADJUST", "")
+    symbol_resolver_enable_yahoo_search: bool = os.getenv(
+        "SYMBOL_RESOLVER_ENABLE_YAHOO_SEARCH", "false"
+    ).lower() == "true"
+    symbol_resolver_enable_web_fallback: bool = os.getenv(
+        "SYMBOL_RESOLVER_ENABLE_WEB_FALLBACK", "false"
+    ).lower() == "true"
+    symbol_resolver_enable_symbol_validation: bool = os.getenv(
+        "SYMBOL_RESOLVER_ENABLE_SYMBOL_VALIDATION", "false"
+    ).lower() == "true"
 
 
 @lru_cache

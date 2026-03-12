@@ -7,6 +7,7 @@ from urllib.parse import quote
 import requests
 
 from app.common.http_client import get_http_client
+from app.core.config import get_settings
 from app.common.symbol_utils import (
     extract_explicit_symbol,
     is_a_share_symbol,
@@ -22,6 +23,7 @@ except Exception:
 
 class SymbolResolverService:
     def __init__(self) -> None:
+        self.settings = get_settings()
         self._headers = {"User-Agent": "Mozilla/5.0"}
         self._http_client = get_http_client()
         self._eastmoney_session = requests.Session()
@@ -131,10 +133,11 @@ class SymbolResolverService:
         for symbol, score in self._search_eastmoney(query):
             scored_candidates[normalize_symbol(symbol)] += score + 3.0
 
-        for symbol, score in self._search_yahoo(query):
-            scored_candidates[normalize_symbol(symbol)] += score + 2.0
+        if self.settings.symbol_resolver_enable_yahoo_search:
+            for symbol, score in self._search_yahoo(query):
+                scored_candidates[normalize_symbol(symbol)] += score + 2.0
 
-        if not scored_candidates:
+        if not scored_candidates and self.settings.symbol_resolver_enable_web_fallback:
             for symbol, score in self._search_web(query):
                 scored_candidates[normalize_symbol(symbol)] += score + 1.0
 
@@ -142,6 +145,9 @@ class SymbolResolverService:
             return None
 
         ranked = sorted(scored_candidates.items(), key=lambda x: x[1], reverse=True)
+        if not self.settings.symbol_resolver_enable_symbol_validation:
+            return ranked[0][0] if ranked else None
+
         for symbol, _ in ranked[:8]:
             if self._is_valid_symbol(symbol):
                 return symbol

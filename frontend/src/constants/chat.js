@@ -36,6 +36,8 @@ export const OBJECTIVE_LABELS = {
   event_volume: "事件日成交量",
   event_is_large_move: "是否达到大幅波动阈值",
   event_big_move_threshold_pct: "大幅波动阈值",
+  query_dsl: "查询 DSL",
+  query_dsl_slots: "查询槽位",
 };
 
 export const INTERNAL_OBJECTIVE_KEYS = new Set([

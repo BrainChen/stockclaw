@@ -5,9 +5,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse, Response
 
 from app.api.routes import router
+from app.common.logger import get_logger, setup_logging
 from app.core.config import get_settings
 
 settings = get_settings()
+setup_logging(settings.log_level)
+logger = get_logger(__name__)
 app = FastAPI(title=settings.app_name)
 project_root = Path(__file__).resolve().parent.parent
 frontend_dist_dir = project_root / "frontend" / "dist"
@@ -22,6 +25,11 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api")
+
+
+@app.on_event("startup")
+def on_startup() -> None:
+    logger.info("app startup %s", settings.app_name)
 
 @app.get("/", include_in_schema=False)
 def index() -> Response:

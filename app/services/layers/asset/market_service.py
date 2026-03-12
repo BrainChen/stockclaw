@@ -9,11 +9,17 @@ import numpy as np
 import pandas as pd
 import requests
 import yfinance as yf
+try:
+    import akshare as ak
+except Exception:
+    ak = None
 
 from app.core.config import get_settings
+from app.common.logger import get_logger, kv
 from app.common.market_rules import is_large_move, is_large_move_question, normalize_large_move_threshold
-from app.services.symbol_resolver_service import SymbolResolverService
-from app.common.symbol_utils import is_a_share_symbol, to_eastmoney_secid, to_stooq_symbol
+from app.models.query_dsl import QueryDSL
+from app.services.layers.asset.symbol_resolver_service import SymbolResolverService
+from app.common.symbol_utils import is_a_share_symbol, normalize_symbol, to_eastmoney_secid, to_stooq_symbol
 
 
 @dataclass
@@ -28,6 +34,7 @@ class MarketService:
     def __init__(self) -> None:
         self.symbol_resolver = SymbolResolverService()
         self.settings = get_settings()
+        self.logger = get_logger(__name__)
         self._headers = {"User-Agent": "Mozilla/5.0"}
         self._eastmoney_session = requests.Session()
         self._eastmoney_session.trust_env = False
@@ -36,13 +43,27 @@ class MarketService:
             default=3.0,
         )
 
-    def analyze(self, question: str, symbol: Optional[str]) -> MarketAnalysis:
-        resolved_symbol = symbol or self.symbol_resolver.resolve(question)
+    def analyze(
+        self,
+        question: str,
+        symbol: Optional[str],
+        query_dsl: Optional[QueryDSL] = None,
+    ) -> MarketAnalysis:
+        resolved_symbol = symbol or (query_dsl.symbol if query_dsl else None) or self.symbol_resolver.resolve(question)
         if not resolved_symbol:
             raise ValueError("未识别到股票代码，请补充更明确的公司名称或交易代码（如 BABA、1810.HK、600519.SS）。")
+        self.logger.info(
+            "market analyze start %s",
+            kv(
+                symbol=resolved_symbol,
+                window_days=query_dsl.window_days if query_dsl else None,
+                event_date=query_dsl.event_date if query_dsl else None,
+            ),
+        )
 
         history, data_provider, ticker = self._fetch_history_with_fallback(resolved_symbol)
         if history.empty:
+            self.logger.warning("market analyze no history %s", kv(symbol=resolved_symbol))
             raise ValueError(
                 f"未获取到 {resolved_symbol} 的行情数据。可能因为上游行情源限流或代码不可用，请稍后重试。"
             )
@@ -60,24 +81,30 @@ class MarketService:
         change_30d = self._calc_change(closes, days=30)
         trend = self._classify_trend(closes.tail(14))
         volatility_14d = self._calc_volatility(closes.tail(14))
-        requested_window_days = self._extract_requested_days(question)
+        requested_window_days = (
+            query_dsl.window_days if query_dsl and query_dsl.window_days is not None else self._extract_requested_days(question)
+        )
         requested_change = (
             self._calc_change(closes, days=requested_window_days) if requested_window_days else None
         )
-        event_date = self._extract_date_from_question(question)
+        event_date = query_dsl.event_date if query_dsl and query_dsl.event_date else self._extract_date_from_question(question)
         event_snapshot = self._build_event_snapshot(history, event_date) if event_date else None
         chart_window_days = requested_window_days or 30
         price_series = self._build_price_series(closes=closes, window_days=chart_window_days)
         volume_series = self._build_volume_series(history=history, window_days=chart_window_days)
         actual_chart_window_days = len(price_series)
 
-        news_items = self._fetch_news(ticker, resolved_symbol) if ticker is not None else []
+        should_fetch_news = ticker is not None and (query_dsl.need_news if query_dsl else True)
+        news_items = self._fetch_news(ticker, resolved_symbol) if should_fetch_news else []
         currency = self._safe_currency(ticker, resolved_symbol, data_provider)
         confidence = self._estimate_confidence(
             data_provider=data_provider,
             news_items=news_items,
             event_snapshot=event_snapshot,
         )
+        fallback_used = data_provider in {"eastmoney", "stooq"}
+        if self.settings.akshare_enabled:
+            fallback_used = data_provider in {"yahoo", "eastmoney", "stooq"}
 
         objective_data = {
             "latest_close": round(latest_close, 4),
@@ -86,7 +113,7 @@ class MarketService:
             "analysis_generated_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
             "currency": currency,
             "data_provider": data_provider,
-            "fallback_used": data_provider == "stooq",
+            "fallback_used": fallback_used,
             "change_7d_pct": round(change_7d, 2),
             "change_14d_pct": round(change_14d, 2),
             "change_30d_pct": round(change_30d, 2),
@@ -101,6 +128,9 @@ class MarketService:
         if requested_window_days is not None and requested_change is not None:
             objective_data["requested_window_days"] = requested_window_days
             objective_data["requested_change_pct"] = round(requested_change, 2)
+        if query_dsl:
+            objective_data["query_dsl"] = query_dsl.to_expression()
+            objective_data["query_dsl_slots"] = query_dsl.to_dict()
         if event_snapshot:
             objective_data.update(event_snapshot)
 
@@ -129,6 +159,16 @@ class MarketService:
                 }
             )
 
+        self.logger.info(
+            "market analyze done %s",
+            kv(
+                symbol=resolved_symbol,
+                provider=data_provider,
+                latest_date=latest_date.isoformat(),
+                news_count=len(news_items),
+                fallback_used=fallback_used,
+            ),
+        )
         return MarketAnalysis(
             symbol=resolved_symbol,
             objective_data=objective_data,
@@ -141,6 +181,13 @@ class MarketService:
     ) -> tuple[pd.DataFrame, str, Optional[yf.Ticker]]:
         ticker = yf.Ticker(symbol)
         is_a_share = is_a_share_symbol(symbol)
+        self.logger.info("market fetch start %s", kv(symbol=symbol, akshare_enabled=self.settings.akshare_enabled))
+
+        if self.settings.akshare_enabled:
+            akshare_history = self._fetch_history_akshare(symbol)
+            if not akshare_history.empty:
+                self.logger.info("market fetch provider hit %s", kv(symbol=symbol, provider="akshare", rows=len(akshare_history)))
+                return akshare_history, "akshare", ticker
 
         max_attempts = max(1, int(self.settings.external_api_max_attempts))
         retry_delay_seconds = max(0.2, float(self.settings.external_api_backoff_ms) / 1000)
@@ -148,20 +195,228 @@ class MarketService:
             try:
                 history = ticker.history(period="3mo", interval="1d", auto_adjust=False)
                 if not history.empty:
+                    self.logger.info("market fetch provider hit %s", kv(symbol=symbol, provider="yahoo", rows=len(history)))
                     return history, "yahoo", ticker
             except Exception:
+                self.logger.warning("market yahoo request failed %s", kv(symbol=symbol))
                 sleep(retry_delay_seconds)
 
         if is_a_share:
             eastmoney_history = self._fetch_history_eastmoney(symbol)
             if not eastmoney_history.empty:
+                self.logger.info("market fetch provider hit %s", kv(symbol=symbol, provider="eastmoney", rows=len(eastmoney_history)))
                 return eastmoney_history, "eastmoney", None
 
         stooq_history = self._fetch_history_stooq(symbol)
         if not stooq_history.empty:
+            self.logger.info("market fetch provider hit %s", kv(symbol=symbol, provider="stooq", rows=len(stooq_history)))
             return stooq_history, "stooq", None
 
+        self.logger.warning("market fetch all providers failed %s", kv(symbol=symbol))
         return pd.DataFrame(), "none", None
+
+    def _fetch_history_akshare(self, symbol: str) -> pd.DataFrame:
+        if ak is None:
+            self.logger.warning("akshare unavailable %s", kv(symbol=symbol))
+            return pd.DataFrame()
+        normalized_symbol = normalize_symbol(symbol)
+        end_date = dt.date.today()
+        start_date = end_date - dt.timedelta(days=220)
+        start_text = start_date.strftime("%Y%m%d")
+        end_text = end_date.strftime("%Y%m%d")
+        adjust = self._normalize_akshare_adjust(self.settings.akshare_adjust)
+
+        try:
+            if is_a_share_symbol(normalized_symbol):
+                code = normalized_symbol.split(".")[0]
+                self.logger.info(
+                    "akshare request %s",
+                    kv(
+                        symbol=symbol,
+                        normalized_symbol=normalized_symbol,
+                        market="A",
+                        api="stock_zh_a_hist",
+                        api_symbol=code,
+                        period="daily",
+                        start_date=start_text,
+                        end_date=end_text,
+                        adjust=adjust,
+                    ),
+                )
+                frame = ak.stock_zh_a_hist(
+                    symbol=code,
+                    period="daily",
+                    start_date=start_text,
+                    end_date=end_text,
+                    adjust=adjust,
+                )
+                self._log_frame_summary(frame=frame, label="akshare raw", symbol=symbol, api="stock_zh_a_hist")
+                normalized = self._normalize_history_frame(
+                    frame,
+                    rename_map={
+                        "日期": "Date",
+                        "开盘": "Open",
+                        "收盘": "Close",
+                        "最高": "High",
+                        "最低": "Low",
+                        "成交量": "Volume",
+                    },
+                )
+                self._log_frame_summary(frame=normalized, label="akshare normalized", symbol=symbol, api="stock_zh_a_hist")
+                return normalized
+
+            if normalized_symbol.endswith(".HK"):
+                code = normalized_symbol.split(".")[0].zfill(5)
+                self.logger.info(
+                    "akshare request %s",
+                    kv(
+                        symbol=symbol,
+                        normalized_symbol=normalized_symbol,
+                        market="HK",
+                        api="stock_hk_hist",
+                        api_symbol=code,
+                        period="daily",
+                        start_date=start_text,
+                        end_date=end_text,
+                        adjust=adjust,
+                    ),
+                )
+                frame = ak.stock_hk_hist(
+                    symbol=code,
+                    period="daily",
+                    start_date=start_text,
+                    end_date=end_text,
+                    adjust=adjust,
+                )
+                self._log_frame_summary(frame=frame, label="akshare raw", symbol=symbol, api="stock_hk_hist")
+                normalized = self._normalize_history_frame(
+                    frame,
+                    rename_map={
+                        "日期": "Date",
+                        "开盘": "Open",
+                        "收盘": "Close",
+                        "最高": "High",
+                        "最低": "Low",
+                        "成交量": "Volume",
+                    },
+                )
+                self._log_frame_summary(frame=normalized, label="akshare normalized", symbol=symbol, api="stock_hk_hist")
+                return normalized
+
+            us_symbol = normalized_symbol.split(".")[0]
+            us_adjust = adjust if adjust in {"", "qfq"} else ""
+            self.logger.info(
+                "akshare request %s",
+                kv(
+                    symbol=symbol,
+                    normalized_symbol=normalized_symbol,
+                    market="US",
+                    api="stock_us_daily",
+                    api_symbol=us_symbol,
+                    adjust=us_adjust,
+                ),
+            )
+            frame = ak.stock_us_daily(symbol=us_symbol, adjust=us_adjust)
+            self._log_frame_summary(frame=frame, label="akshare raw", symbol=symbol, api="stock_us_daily")
+            normalized = self._normalize_history_frame(
+                frame,
+                rename_map={
+                    "date": "Date",
+                    "open": "Open",
+                    "close": "Close",
+                    "high": "High",
+                    "low": "Low",
+                    "volume": "Volume",
+                },
+            )
+            self._log_frame_summary(frame=normalized, label="akshare normalized", symbol=symbol, api="stock_us_daily")
+            if normalized.empty:
+                return normalized
+            filtered = normalized[normalized.index >= pd.Timestamp(start_date)].tail(90)
+            self._log_frame_summary(frame=filtered, label="akshare filtered", symbol=symbol, api="stock_us_daily")
+            return filtered
+        except Exception as exc:
+            self.logger.exception("akshare request failed %s", kv(symbol=symbol, error=str(exc)))
+            return pd.DataFrame()
+
+    def _log_frame_summary(
+        self,
+        frame: pd.DataFrame,
+        *,
+        label: str,
+        symbol: str,
+        api: str,
+    ) -> None:
+        if frame is None or frame.empty:
+            self.logger.warning("%s empty %s", label, kv(symbol=symbol, api=api, rows=0))
+            return
+        start_date, end_date = self._infer_frame_date_range(frame)
+        columns = ",".join([str(column) for column in frame.columns[:8]])
+        self.logger.info(
+            "%s %s",
+            label,
+            kv(
+                symbol=symbol,
+                api=api,
+                rows=len(frame),
+                cols=columns,
+                date_start=start_date,
+                date_end=end_date,
+            ),
+        )
+
+    def _infer_frame_date_range(self, frame: pd.DataFrame) -> tuple[str, str]:
+        date_series: Optional[pd.Series] = None
+        if "Date" in frame.columns:
+            date_series = pd.to_datetime(frame["Date"], errors="coerce").dropna()
+        elif isinstance(frame.index, pd.DatetimeIndex):
+            date_series = pd.Series(frame.index).dropna()
+        if date_series is None or date_series.empty:
+            return "N/A", "N/A"
+        return date_series.min().date().isoformat(), date_series.max().date().isoformat()
+
+    def _normalize_history_frame(
+        self,
+        frame: pd.DataFrame,
+        rename_map: Dict[str, str],
+    ) -> pd.DataFrame:
+        if frame is None or frame.empty:
+            return pd.DataFrame()
+
+        normalized = frame.copy()
+        adjusted_map = dict(rename_map)
+        if "Date" not in normalized.columns:
+            has_declared_date_column = any(
+                source in normalized.columns and target == "Date"
+                for source, target in adjusted_map.items()
+            )
+            if not has_declared_date_column:
+                normalized = normalized.reset_index()
+                first_col = str(normalized.columns[0])
+                adjusted_map[first_col] = "Date"
+        normalized = normalized.rename(columns=adjusted_map)
+
+        if "Date" not in normalized.columns or "Close" not in normalized.columns:
+            return pd.DataFrame()
+
+        for column in ["Open", "High", "Low", "Volume"]:
+            if column not in normalized.columns:
+                normalized[column] = np.nan if column != "Volume" else 0
+        normalized = normalized[["Date", "Open", "High", "Low", "Close", "Volume"]]
+        normalized["Date"] = pd.to_datetime(normalized["Date"], errors="coerce")
+        for column in ["Open", "High", "Low", "Close", "Volume"]:
+            normalized[column] = pd.to_numeric(normalized[column], errors="coerce")
+
+        normalized = normalized.dropna(subset=["Date", "Close"]).sort_values("Date")
+        if normalized.empty:
+            return pd.DataFrame()
+        return normalized.set_index("Date").tail(90)
+
+    def _normalize_akshare_adjust(self, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized in {"", "qfq", "hfq"}:
+            return normalized
+        return ""
 
     def _fetch_history_eastmoney(self, symbol: str) -> pd.DataFrame:
         secid = to_eastmoney_secid(symbol)
@@ -311,6 +566,13 @@ class MarketService:
     def _safe_currency(
         self, ticker: Optional[yf.Ticker], symbol: str, data_provider: str
     ) -> str:
+        if data_provider == "akshare":
+            normalized_symbol = normalize_symbol(symbol)
+            if normalized_symbol.endswith((".SS", ".SZ")):
+                return "CNY"
+            if normalized_symbol.endswith(".HK"):
+                return "HKD"
+            return "USD"
         if data_provider == "eastmoney":
             return "CNY"
         if data_provider == "stooq":
@@ -330,6 +592,14 @@ class MarketService:
             return "N/A"
 
     def _build_market_source(self, symbol: str, data_provider: str) -> Dict[str, Any]:
+        if data_provider == "akshare":
+            return {
+                "source_type": "market",
+                "title": f"{symbol} - AKShare Market Data",
+                "content": "OHLCV daily history from AKShare data interfaces",
+                "url": "https://akshare.akfamily.xyz/",
+                "score": None,
+            }
         if data_provider == "eastmoney":
             normalized_symbol = symbol.upper()
             if normalized_symbol.endswith(".SS"):
