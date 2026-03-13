@@ -18,6 +18,7 @@ from app.core.config import get_settings
 from app.common.logger import get_logger, kv
 from app.common.market_rules import is_large_move, is_large_move_question, normalize_large_move_threshold
 from app.models.query_dsl import QueryDSL
+from app.services.layers.asset.eastmoney_realtime_service import EastmoneyRealtimeService
 from app.services.layers.asset.news_analyzer_service import NewsAnalyzerService
 from app.services.layers.asset.symbol_resolver_service import SymbolResolverService
 from app.common.symbol_utils import is_a_share_symbol, normalize_symbol, to_eastmoney_secid, to_stooq_symbol
@@ -46,6 +47,7 @@ class MarketService:
         self.news_analyzer = NewsAnalyzerService(
             large_move_threshold_pct=self.large_move_threshold_pct,
         )
+        self.eastmoney_realtime_service = EastmoneyRealtimeService()
 
     def analyze(
         self,
@@ -54,6 +56,8 @@ class MarketService:
         query_dsl: Optional[QueryDSL] = None,
     ) -> MarketAnalysis:
         resolved_symbol = symbol or (query_dsl.symbol if query_dsl else None) or self.symbol_resolver.resolve(question)
+        if resolved_symbol:
+            resolved_symbol = normalize_symbol(resolved_symbol)
         if not resolved_symbol:
             raise ValueError("未识别到股票代码，请补充更明确的公司名称或交易代码（如 BABA、1810.HK、600519.SS）。")
         self.logger.info(
@@ -129,6 +133,16 @@ class MarketService:
             "price_series": price_series,
             "volume_series": volume_series,
         }
+        realtime_snapshot = self._fetch_realtime_three_points(resolved_symbol)
+        if realtime_snapshot:
+            objective_data["session_market"] = realtime_snapshot.get("market")
+            objective_data["session_phase"] = realtime_snapshot.get("phase")
+            objective_data["session_exchange_timezone"] = realtime_snapshot.get("exchange_timezone")
+            objective_data["session_checked_at"] = realtime_snapshot.get("phase_checked_at")
+            objective_data["session_quote_url"] = realtime_snapshot.get("quote_url")
+            objective_data["session_analysis"] = realtime_snapshot.get("session_analysis", {})
+            objective_data["session_three_points"] = realtime_snapshot.get("session_points", {})
+            objective_data["session_resource_urls"] = realtime_snapshot.get("resource_urls", [])
         if requested_window_days is not None and requested_change is not None:
             objective_data["requested_window_days"] = requested_window_days
             objective_data["requested_change_pct"] = round(requested_change, 2)
@@ -150,8 +164,23 @@ class MarketService:
             volatility_14d=volatility_14d,
             ticker=ticker,
         )
+        realtime_signal = self._build_session_three_points_signal(
+            objective_data.get("session_three_points", {})
+        )
+        if realtime_signal:
+            analysis.insert(1, realtime_signal)
 
         sources = [self._build_market_source(resolved_symbol, data_provider)]
+        if objective_data.get("session_quote_url"):
+            sources.append(
+                {
+                    "source_type": "market",
+                    "title": f"{resolved_symbol} - Eastmoney Realtime Session Points",
+                    "content": "盘前/盘中/盘尾三时刻快照，来自 Eastmoney push2 实时接口",
+                    "url": objective_data.get("session_quote_url"),
+                    "score": None,
+                }
+            )
         for news in news_items[:5]:
             sources.append(
                 {
@@ -179,6 +208,65 @@ class MarketService:
             analysis=analysis,
             sources=sources,
         )
+
+    def _fetch_realtime_three_points(self, symbol: str) -> Optional[Dict[str, Any]]:
+        quote_url = self._to_eastmoney_quote_url(symbol)
+        if not quote_url:
+            return None
+        try:
+            payload = self.eastmoney_realtime_service.fetch_realtime(
+                quote_url=quote_url,
+                ndays=1,
+                max_points=500,
+            )
+            return payload
+        except Exception as exc:
+            self.logger.warning(
+                "market realtime fetch failed %s",
+                kv(symbol=symbol, quote_url=quote_url, error=str(exc)),
+            )
+            return None
+
+    def _to_eastmoney_quote_url(self, symbol: str) -> Optional[str]:
+        normalized = normalize_symbol(symbol)
+        if normalized.endswith(".SS"):
+            code = normalized.split(".")[0]
+            return f"https://quote.eastmoney.com/sh{code}.html"
+        if normalized.endswith(".SZ"):
+            code = normalized.split(".")[0]
+            return f"https://quote.eastmoney.com/sz{code}.html"
+        if normalized.endswith(".HK"):
+            code = normalized.split(".")[0].zfill(5)
+            return f"https://quote.eastmoney.com/hk/{code}.html"
+        base = normalized.split(".")[0]
+        if re.fullmatch(r"[A-Z][A-Z0-9\.\-]{0,9}", base):
+            return f"https://quote.eastmoney.com/us/{base}.html"
+        return None
+
+    def _build_session_three_points_signal(self, session_points: Dict[str, Any]) -> Optional[str]:
+        if not session_points:
+            return None
+        labels = [
+            ("pre_market", "盘前"),
+            ("intraday", "盘中"),
+            ("post_market", "盘尾"),
+        ]
+        fragments: List[str] = []
+        for key, label in labels:
+            point = session_points.get(key)
+            if not isinstance(point, dict):
+                continue
+            price = point.get("price")
+            change = point.get("vs_prev_close_pct")
+            if price is None:
+                continue
+            if change is None:
+                fragments.append(f"{label}价 {price}")
+            else:
+                fragments.append(f"{label}价 {price}（较昨收 {change:+.2f}%）")
+        if not fragments:
+            return None
+        return "分时三点：{}。".format("；".join(fragments))
 
     def _fetch_history_with_fallback(
         self, symbol: str

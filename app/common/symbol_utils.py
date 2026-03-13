@@ -12,8 +12,25 @@ def _infer_a_share_suffix(code: str) -> Optional[str]:
     return None
 
 
+def _infer_hk_symbol(code: str) -> Optional[str]:
+    if not re.fullmatch(r"\d{4,5}", code):
+        return None
+    return f"{int(code):04d}.HK"
+
+
 def normalize_symbol(symbol: str) -> str:
     normalized = symbol.strip().upper()
+    hk_match = re.fullmatch(r"(0?\d{3,5})[\s\-_/.]*HK", normalized)
+    if hk_match:
+        return f"{int(hk_match.group(1)):04d}.HK"
+    a_share_match = re.fullmatch(r"(\d{6})[\s\-_/.]*(SH|SS|SZ)", normalized)
+    if a_share_match:
+        code = a_share_match.group(1)
+        suffix = a_share_match.group(2).replace("SH", "SS")
+        return f"{code}.{suffix}"
+    inferred_hk_symbol = _infer_hk_symbol(normalized)
+    if inferred_hk_symbol:
+        return inferred_hk_symbol
     if normalized.endswith(".HK"):
         digits = normalized.split(".")[0]
         if digits.isdigit():

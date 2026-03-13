@@ -1,6 +1,7 @@
 from pathlib import Path
 from time import perf_counter
 from typing import Literal
+from urllib.parse import quote
 from uuid import uuid4
 
 from fastapi import APIRouter, Header, HTTPException, Query
@@ -10,15 +11,19 @@ from app.common.logger import get_logger, kv, preview_text
 from app.models.schemas import (
     ChatRequest,
     ChatResponse,
+    EastmoneyRealtimeResponse,
     KBReindexRequest,
     KBSearchRequest,
     KBSearchResponse,
     KBStatsResponse,
+    SourceItem,
 )
 from app.services.layers.orchestration.answer_service import FinancialQAService
+from app.services.layers.asset.eastmoney_realtime_service import EastmoneyRealtimeService
 
 router = APIRouter()
 qa_service = FinancialQAService()
+eastmoney_realtime_service = EastmoneyRealtimeService()
 logger = get_logger(__name__)
 
 
@@ -39,9 +44,69 @@ def _resolve_kb_file(path: str) -> Path:
     raise HTTPException(status_code=404, detail="知识库文档不存在或路径非法")
 
 
+def _build_markdown_response(answer: str, sources: list[SourceItem]) -> str:
+    reference_lines: list[str] = []
+    for index, source in enumerate(sources, start=1):
+        href = _resolve_source_href(source)
+        if not href:
+            continue
+        title = source.title.strip() if source.title else f"Source {index}"
+        reference_lines.append(f"- [{index}] [{title}]({href})")
+
+    if not reference_lines:
+        return answer
+
+    suffix = "\n\n## 参考来源\n" + "\n".join(reference_lines)
+    return answer.rstrip() + suffix
+
+
+def _resolve_source_href(source: SourceItem) -> str | None:
+    if source.url:
+        return source.url
+    if source.path:
+        return f"/api/kb/document/preview?path={quote(source.path, safe='')}"
+    return None
+
+
 @router.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@router.get("/market/eastmoney/realtime", response_model=EastmoneyRealtimeResponse)
+def market_eastmoney_realtime(
+    url: str = Query(..., min_length=10, description="东方财富个股页面 URL"),
+    ndays: int = Query(1, ge=1, le=5, description="分时天数（1-5）"),
+    max_points: int = Query(240, ge=10, le=1200, description="返回分时点上限"),
+) -> EastmoneyRealtimeResponse:
+    try:
+        logger.info(
+            "eastmoney realtime request %s",
+            kv(url=url, ndays=ndays, max_points=max_points),
+        )
+        payload = eastmoney_realtime_service.fetch_realtime(
+            quote_url=url,
+            ndays=ndays,
+            max_points=max_points,
+        )
+        logger.info(
+            "eastmoney realtime response %s",
+            kv(
+                url=url,
+                symbol=payload.get("symbol"),
+                market=payload.get("market"),
+                secid=payload.get("secid"),
+                phase=payload.get("phase"),
+                trend_points_count=payload.get("trend_points_count"),
+            ),
+        )
+        return EastmoneyRealtimeResponse(**payload)
+    except ValueError as exc:
+        logger.warning("eastmoney realtime validation failed %s", kv(url=url, error=str(exc)))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("eastmoney realtime failed %s", kv(url=url, error=str(exc)))
+        raise HTTPException(status_code=500, detail=f"Eastmoney 实时接口异常: {exc}") from exc
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -85,7 +150,7 @@ def chat(
         )
         if wants_markdown:
             return PlainTextResponse(
-                content=result.answer,
+                content=_build_markdown_response(result.answer, result.sources),
                 media_type="text/markdown; charset=utf-8",
             )
         return result

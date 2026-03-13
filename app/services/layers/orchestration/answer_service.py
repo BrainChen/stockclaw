@@ -63,11 +63,13 @@ class FinancialQAService:
             symbol=symbol,
             query_dsl=query_dsl,
         )
+        source_dicts = analysis_result.sources
         answer = self._generate_asset_answer(
             question=question,
             symbol=analysis_result.symbol,
             objective_data=analysis_result.objective_data,
             analysis=analysis_result.analysis,
+            sources=source_dicts,
         )
         response = ChatResponse(
             route="asset",
@@ -75,7 +77,7 @@ class FinancialQAService:
             answer=answer,
             objective_data=analysis_result.objective_data,
             analysis=analysis_result.analysis,
-            sources=[SourceItem(**source) for source in analysis_result.sources],
+            sources=[SourceItem(**source) for source in source_dicts],
         )
         self.logger.info(
             "asset flow done %s",
@@ -114,6 +116,7 @@ class FinancialQAService:
         symbol: str,
         objective_data: dict,
         analysis: List[str],
+        sources: List[Dict],
     ) -> str:
         requested_window_days = objective_data.get("requested_window_days")
         requested_change = objective_data.get("requested_change_pct")
@@ -121,6 +124,7 @@ class FinancialQAService:
         event_trade_date = objective_data.get("event_trade_date") or event_query_date
         event_change = objective_data.get("event_change_pct")
         event_has_data = bool(objective_data.get("event_has_data"))
+        session_points = objective_data.get("session_three_points", {}) or {}
         large_move_threshold = normalize_large_move_threshold(
             objective_data.get("event_big_move_threshold_pct"),
             default=3.0,
@@ -143,16 +147,25 @@ class FinancialQAService:
             if has_event_focus
             else ""
         )
+        session_instruction = (
+            "若客观数据包含 session_three_points，必须单独给出盘前、盘中、盘尾三时刻的价格、"
+            "相对昨收涨跌幅、量额信息；缺失字段要明确写“数据不足”。"
+            if session_points
+            else ""
+        )
         prompt_objective_data = {
             key: value
             for key, value in objective_data.items()
             if key not in {"price_series", "volume_series"}
         }
+        source_context = self._format_context_for_llm(sources, max_sources=6)
         system_prompt = (
             "你是专业金融分析助手。回答必须结构化，先给客观数据，再给分析描述。"
             "必须优先直接回答用户提到的时间周期（如7天/14天），不得用其他周期替代。"
             f"{event_instruction}"
+            f"{session_instruction}"
             "如需引用来源，只能使用 [n] 形式（如 [1][2]），禁止输出裸数字引用（如 12 或 ¹²）。"
+            "凡是引用客观行情、分时三时刻、新闻或数据源描述时，都应附上对应 [n] 引用。"
             "不得预测未来走势，不得编造数据。"
         )
         user_prompt = f"""
@@ -160,90 +173,134 @@ class FinancialQAService:
 股票代码：{symbol}
 客观数据：{prompt_objective_data}
 分析线索：{analysis}
+可引用来源（已编号）：
+{source_context}
 用户关注周期：{requested_window_text}
 
 请按以下格式输出：
 1) 直接结论（先回答用户关注周期/事件日的涨跌幅，不超过2句）
-2) 客观数据（日期、价格、7日涨跌、14日涨跌、30日涨跌、趋势；若存在事件日则补充事件日开高低收与单日涨跌）
+2) 客观数据（日期、价格、7日涨跌、14日涨跌、30日涨跌、趋势；若存在事件日则补充事件日开高低收与单日涨跌；若存在 session_three_points 则补充盘前/盘中/盘尾三时刻）
 3) 可能影响因素（至少4条，尽量覆盖：财报、宏观、行业/公司新闻、量价结构；若某角度证据不足需明确写“证据不足”）
 4) 风险提示（1条）
 """
         llm_result = self.llm_service.generate(system_prompt, user_prompt)
         if llm_result:
-            return llm_result
+            normalized = self._normalize_citations(llm_result, len(sources))
+            if normalized:
+                return normalized
 
         conclusion_lines = []
+        market_citation = self._build_citation_markers([1, 2], len(sources))
+        news_citations = self._build_citation_markers(
+            list(range(3, min(len(sources), 6) + 1)),
+            len(sources),
+        )
         if has_event_focus:
             if event_has_data and event_change is not None:
                 direction = "上涨" if float(event_change) >= 0 else "下跌"
                 conclusion_lines.append(
-                    f"- 事件日 {event_trade_date} 单日{direction} {abs(float(event_change)):.2f}%。"
+                    f"- 事件日 {event_trade_date} 单日{direction} {abs(float(event_change)):.2f}%{market_citation}。"
                 )
                 if is_event_large_move_question:
                     if is_large_move(event_change, large_move_threshold):
                         conclusion_lines.append(
-                            f"- 该幅度达到常见“大涨/大跌”（约≥{large_move_threshold:.1f}%）阈值。"
+                            f"- 该幅度达到常见“大涨/大跌”（约≥{large_move_threshold:.1f}%）阈值{market_citation}。"
                         )
                     else:
                         conclusion_lines.append(
-                            f"- 该幅度未达到常见“大涨/大跌”（约≥{large_move_threshold:.1f}%）阈值。"
+                            f"- 该幅度未达到常见“大涨/大跌”（约≥{large_move_threshold:.1f}%）阈值{market_citation}。"
                         )
             else:
-                conclusion_lines.append(f"- 事件日 {event_query_date} 非交易日或数据不足，无法直接核验单日涨跌。")
+                conclusion_lines.append(f"- 事件日 {event_query_date} 非交易日或数据不足，无法直接核验单日涨跌{market_citation}。")
             conclusion_lines.append(
-                f"- 背景区间：近7日 {objective_data['change_7d_pct']}%，近30日 {objective_data['change_30d_pct']}%。"
+                f"- 背景区间：近7日 {objective_data['change_7d_pct']}%，近30日 {objective_data['change_30d_pct']}%{market_citation}。"
             )
         elif requested_window_days is not None and requested_change is not None:
             conclusion_lines.append(
-                f"- 近{requested_window_days}个交易日涨跌：{requested_change}%"
+                f"- 近{requested_window_days}个交易日涨跌：{requested_change}%{market_citation}"
             )
         else:
-            conclusion_lines.append("- 未识别到明确时间窗口，以下展示通用区间数据。")
+            conclusion_lines.append(f"- 未识别到明确时间窗口，以下展示通用区间数据{market_citation}。")
 
         event_data_lines = []
         if has_event_focus:
-            event_data_lines.append(f"- 事件查询日期：{event_query_date}")
+            event_data_lines.append(f"- 事件查询日期：{event_query_date}{market_citation}")
             if event_has_data:
-                event_data_lines.append(f"- 事件交易日：{event_trade_date}")
+                event_data_lines.append(f"- 事件交易日：{event_trade_date}{market_citation}")
                 if objective_data.get("event_open") is not None:
-                    event_data_lines.append(f"- 事件日开盘：{objective_data.get('event_open')}")
+                    event_data_lines.append(f"- 事件日开盘：{objective_data.get('event_open')}{market_citation}")
                 if objective_data.get("event_high") is not None:
-                    event_data_lines.append(f"- 事件日最高：{objective_data.get('event_high')}")
+                    event_data_lines.append(f"- 事件日最高：{objective_data.get('event_high')}{market_citation}")
                 if objective_data.get("event_low") is not None:
-                    event_data_lines.append(f"- 事件日最低：{objective_data.get('event_low')}")
+                    event_data_lines.append(f"- 事件日最低：{objective_data.get('event_low')}{market_citation}")
                 if objective_data.get("event_close") is not None:
-                    event_data_lines.append(f"- 事件日收盘：{objective_data.get('event_close')}")
+                    event_data_lines.append(f"- 事件日收盘：{objective_data.get('event_close')}{market_citation}")
                 if objective_data.get("event_change_pct") is not None:
-                    event_data_lines.append(f"- 事件日单日涨跌：{objective_data.get('event_change_pct')}%")
+                    event_data_lines.append(f"- 事件日单日涨跌：{objective_data.get('event_change_pct')}%{market_citation}")
                 if objective_data.get("event_volume") is not None:
-                    event_data_lines.append(f"- 事件日成交量：{objective_data.get('event_volume')}")
+                    event_data_lines.append(f"- 事件日成交量：{objective_data.get('event_volume')}{market_citation}")
             else:
                 previous_trade_date = objective_data.get("event_prev_trade_date")
                 next_trade_date = objective_data.get("event_next_trade_date")
                 if previous_trade_date:
-                    event_data_lines.append(f"- 前一交易日：{previous_trade_date}")
+                    event_data_lines.append(f"- 前一交易日：{previous_trade_date}{market_citation}")
                 if next_trade_date:
-                    event_data_lines.append(f"- 后一交易日：{next_trade_date}")
+                    event_data_lines.append(f"- 后一交易日：{next_trade_date}{market_citation}")
+
+        session_lines = []
+        session_phase_labels = {
+            "pre_market": "盘前",
+            "intraday": "盘中",
+            "post_market": "盘尾",
+        }
+        for key in ["pre_market", "intraday", "post_market"]:
+            point = session_points.get(key)
+            label = session_phase_labels[key]
+            if not isinstance(point, dict):
+                session_lines.append(f"- {label}：数据不足{market_citation}")
+                continue
+            price = point.get("price")
+            timestamp = point.get("timestamp") or "N/A"
+            vs_prev_close_pct = point.get("vs_prev_close_pct")
+            volume = point.get("volume")
+            amount = point.get("amount")
+            if price is None:
+                session_lines.append(f"- {label}：数据不足{market_citation}")
+                continue
+            line = f"- {label}：时间 {timestamp}，价格 {price}"
+            if vs_prev_close_pct is not None:
+                line += f"，较昨收 {vs_prev_close_pct:+.2f}%"
+            if volume is not None:
+                line += f"，成交量 {volume}"
+            if amount is not None:
+                line += f"，成交额 {amount}"
+            session_lines.append(f"{line}{market_citation}")
 
         return (
             f"【直接结论】\n"
             + "\n".join(conclusion_lines)
             + "\n\n"
             f"【客观数据】\n"
-            f"- 标的：{symbol}\n"
-            f"- 最新收盘价：{objective_data['latest_close']} {objective_data.get('currency', '')}\n"
-            f"- 数据日期：{objective_data['latest_date']}\n"
-            f"- 数据源：{objective_data.get('data_provider', 'unknown')}\n"
-            f"- 分析置信度：{objective_data.get('analysis_confidence', 'N/A')}\n"
-            f"- 近7日涨跌：{objective_data['change_7d_pct']}%\n"
-            f"- 近14日涨跌：{objective_data.get('change_14d_pct', 0)}%\n"
-            f"- 近30日涨跌：{objective_data['change_30d_pct']}%\n"
-            f"- 近14日趋势：{objective_data['trend_14d']}\n"
+            f"- 标的：{symbol}{market_citation}\n"
+            f"- 最新收盘价：{objective_data['latest_close']} {objective_data.get('currency', '')}{market_citation}\n"
+            f"- 数据日期：{objective_data['latest_date']}{market_citation}\n"
+            f"- 数据源：{objective_data.get('data_provider', 'unknown')}{market_citation}\n"
+            f"- 分析置信度：{objective_data.get('analysis_confidence', 'N/A')}{market_citation}\n"
+            f"- 近7日涨跌：{objective_data['change_7d_pct']}%{market_citation}\n"
+            f"- 近14日涨跌：{objective_data.get('change_14d_pct', 0)}%{market_citation}\n"
+            f"- 近30日涨跌：{objective_data['change_30d_pct']}%{market_citation}\n"
+            f"- 近14日趋势：{objective_data['trend_14d']}{market_citation}\n"
             + ("\n".join(event_data_lines) + "\n" if event_data_lines else "")
+            + ("\n".join(session_lines) + "\n" if session_lines else "")
             + "\n"
             f"【可能影响因素】\n"
-            + "\n".join([f"- {item}" for item in analysis[:5]])
-            + "\n\n【风险提示】\n- 以上为历史数据与公开信息归纳，不构成投资建议。"
+            + "\n".join(
+                [
+                    f"- {item}{news_citations if index > 0 and news_citations else market_citation}"
+                    for index, item in enumerate(analysis[:5])
+                ]
+            )
+            + f"\n\n【风险提示】\n- 以上为历史数据与公开信息归纳，不构成投资建议{market_citation}。"
         )
 
     def _build_knowledge_sources(self, kb_hits: list, web_hits: list) -> list[Dict]:
@@ -391,3 +448,9 @@ class FinancialQAService:
         if "[" not in normalized:
             normalized = f"{normalized}\n\n参考来源：[1]"
         return normalized
+
+    def _build_citation_markers(self, indexes: List[int], source_count: int) -> str:
+        valid_indexes = [index for index in indexes if 1 <= index <= source_count]
+        if not valid_indexes:
+            return ""
+        return "".join([f"[{index}]" for index in valid_indexes])

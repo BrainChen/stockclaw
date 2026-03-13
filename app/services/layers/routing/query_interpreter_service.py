@@ -26,8 +26,9 @@ class QueryInterpreterService:
             "trend": ["走势", "趋势", "k线", "k 线", "trend"],
             "volatility": ["波动", "波动率", "volatility"],
             "volume": ["成交量", "换手", "volume"],
+            "session": ["盘前", "盘中", "盘后", "盘尾", "分时", "pre-market", "intraday", "post-market"],
         }
-        self._allowed_metrics = {"close", "change", "trend", "volatility", "volume", "event"}
+        self._allowed_metrics = {"close", "change", "trend", "volatility", "volume", "event", "session"}
         self._news_keywords = [
             "为什么",
             "为何",
@@ -126,7 +127,7 @@ class QueryInterpreterService:
             "route 只能是 asset 或 knowledge。"
             "window_days 必须是 1-120 的整数或 null。"
             "event_date 必须是 YYYY-MM-DD 或 null。"
-            'metrics 只能从 ["close","change","trend","volatility","volume","event"] 选择。'
+            'metrics 只能从 ["close","change","trend","volatility","volume","event","session"] 选择。'
             "confidence 范围是 0 到 1。"
         )
         user_prompt = (
@@ -236,6 +237,8 @@ class QueryInterpreterService:
             )
 
         resolved_symbol = symbol or fallback_dsl.symbol
+        if isinstance(resolved_symbol, str) and resolved_symbol.strip():
+            resolved_symbol = normalize_symbol(resolved_symbol)
         return QueryDSL(
             route="asset",
             question=question,
