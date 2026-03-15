@@ -1,7 +1,15 @@
-# Financial Asset QA System
+<h1 align="center">stockclaw</h1>
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Language: English](https://img.shields.io/badge/Language-English-blue)](./README_EN.md)
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-18-20232A?logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white)
+
 ![系统截图](./screen_shot.png)
 
-基于 `FastAPI + React + 市场数据 + 检索增强生成（RAG）` 的金融问答系统。  
+`stockclaw` 是一个基于 `FastAPI + React + 市场数据 + 检索增强生成（RAG）` 的金融问答系统。  
 项目支持两类问题：
 
 - **资产行情问答**：围绕美股/港股/A股代码，输出价格、涨跌、趋势与影响因素。

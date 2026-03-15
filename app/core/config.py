@@ -11,7 +11,7 @@ load_dotenv(".env.local", override=True)
 
 @dataclass
 class Settings:
-    app_name: str = "Financial Asset QA System"
+    app_name: str = "stockclaw"
     app_env: str = os.getenv("APP_ENV", "dev")
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     host: str = os.getenv("HOST", "0.0.0.0")
@@ -21,7 +21,7 @@ class Settings:
     openrouter_model: str = os.getenv("OPENROUTER_MODEL", "openrouter/auto")
     openrouter_base_url: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
     openrouter_site_url: str = os.getenv("OPENROUTER_SITE_URL", "")
-    openrouter_app_name: str = os.getenv("OPENROUTER_APP_NAME", "Financial Asset QA System")
+    openrouter_app_name: str = os.getenv("OPENROUTER_APP_NAME", "stockclaw")
 
     web_search_enabled: bool = os.getenv("WEB_SEARCH_ENABLED", "true").lower() == "true"
     web_search_max_results: int = int(os.getenv("WEB_SEARCH_MAX_RESULTS", "3"))
