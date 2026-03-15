@@ -1,6 +1,7 @@
 <h1 align="center">stockclaw</h1>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-Integrated-2F80ED)](./skills/stockclaw-open-source/SKILL.md)
 [![Language: English](https://img.shields.io/badge/Language-English-blue)](./README_EN.md)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?logo=fastapi&logoColor=white)
@@ -218,7 +219,6 @@ API --> FE
 - `GET /api/health`：健康检查
 - `POST /api/chat`：统一问答入口（默认返回 `application/json`）
 - `POST /api/chat?format=md`：返回 `text/markdown`（仅回答正文）
-- `GET /api/market/eastmoney/realtime?url=...`：按 Eastmoney 个股页面抓取实时快照 + 分时 + 盘前/盘中/盘后阶段分析
 - `GET /api/kb/stats`：知识库索引状态
 - `POST /api/kb/reindex`：重建知识库索引
 - `POST /api/kb/search`：知识库检索调试
@@ -234,22 +234,6 @@ curl -sS -X POST \
   -d '{"query":"通货膨胀的定义"}' \
   http://127.0.0.1:8000/api/chat
 ```
-
-Eastmoney 实时抓取示例（支持 A 股 / 港股 / 美股页面 URL）：
-
-```bash
-curl -sS "http://127.0.0.1:8000/api/market/eastmoney/realtime?url=https://quote.eastmoney.com/sh601868.html"
-curl -sS "http://127.0.0.1:8000/api/market/eastmoney/realtime?url=https://quote.eastmoney.com/sz301396.html"
-curl -sS "http://127.0.0.1:8000/api/market/eastmoney/realtime?url=https://quote.eastmoney.com/us/MOS.html"
-curl -sS "http://127.0.0.1:8000/api/market/eastmoney/realtime?url=https://quote.eastmoney.com/hk/01810.html"
-```
-
-返回重点字段：
-
-- `phase`：`pre_market / intraday / post_market / closed`
-- `snapshot`：最新价、开高低收、涨跌幅、成交量、成交额、时间戳
-- `session_points`：仅保留三时刻快照（`pre_market / intraday / post_market`）
-- `session_analysis`：三时刻之外的辅助统计（振幅、相对开盘/昨收、累计量额）
 
 ---
 

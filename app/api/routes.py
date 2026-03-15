@@ -11,7 +11,6 @@ from app.common.logger import get_logger, kv, preview_text
 from app.models.schemas import (
     ChatRequest,
     ChatResponse,
-    EastmoneyRealtimeResponse,
     KBReindexRequest,
     KBSearchRequest,
     KBSearchResponse,
@@ -19,11 +18,9 @@ from app.models.schemas import (
     SourceItem,
 )
 from app.services.layers.orchestration.answer_service import FinancialQAService
-from app.services.layers.asset.eastmoney_realtime_service import EastmoneyRealtimeService
 
 router = APIRouter()
 qa_service = FinancialQAService()
-eastmoney_realtime_service = EastmoneyRealtimeService()
 logger = get_logger(__name__)
 
 
@@ -71,42 +68,6 @@ def _resolve_source_href(source: SourceItem) -> str | None:
 @router.get("/health")
 def health() -> dict:
     return {"status": "ok"}
-
-
-@router.get("/market/eastmoney/realtime", response_model=EastmoneyRealtimeResponse)
-def market_eastmoney_realtime(
-    url: str = Query(..., min_length=10, description="东方财富个股页面 URL"),
-    ndays: int = Query(1, ge=1, le=5, description="分时天数（1-5）"),
-    max_points: int = Query(240, ge=10, le=1200, description="返回分时点上限"),
-) -> EastmoneyRealtimeResponse:
-    try:
-        logger.info(
-            "eastmoney realtime request %s",
-            kv(url=url, ndays=ndays, max_points=max_points),
-        )
-        payload = eastmoney_realtime_service.fetch_realtime(
-            quote_url=url,
-            ndays=ndays,
-            max_points=max_points,
-        )
-        logger.info(
-            "eastmoney realtime response %s",
-            kv(
-                url=url,
-                symbol=payload.get("symbol"),
-                market=payload.get("market"),
-                secid=payload.get("secid"),
-                phase=payload.get("phase"),
-                trend_points_count=payload.get("trend_points_count"),
-            ),
-        )
-        return EastmoneyRealtimeResponse(**payload)
-    except ValueError as exc:
-        logger.warning("eastmoney realtime validation failed %s", kv(url=url, error=str(exc)))
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
-        logger.exception("eastmoney realtime failed %s", kv(url=url, error=str(exc)))
-        raise HTTPException(status_code=500, detail=f"Eastmoney 实时接口异常: {exc}") from exc
 
 
 @router.post("/chat", response_model=ChatResponse)

@@ -69,17 +69,3 @@ class KBSearchResponse(BaseModel):
     total_hits: int
     hits: List[KBSearchHit]
 
-
-class EastmoneyRealtimeResponse(BaseModel):
-    quote_url: str
-    market: Literal["cn_a", "hk", "us"]
-    symbol: str
-    secid: str
-    exchange_timezone: str
-    phase: Literal["pre_market", "intraday", "post_market", "closed"]
-    phase_checked_at: str
-    snapshot: Dict[str, Any] = Field(default_factory=dict)
-    session_analysis: Dict[str, Any] = Field(default_factory=dict)
-    session_points: Dict[str, Any] = Field(default_factory=dict)
-    trend_points_count: int = 0
-    resource_urls: List[str] = Field(default_factory=list)

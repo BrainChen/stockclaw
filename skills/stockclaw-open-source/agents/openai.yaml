@@ -1,0 +1,4 @@
+interface:
+  display_name: "Stockclaw API Runner"
+  short_description: "Start stockclaw and call /api endpoints from OpenClaw"
+  default_prompt: "Start stockclaw services, verify health, and invoke public stockclaw APIs such as /api/chat and /api/kb/*."

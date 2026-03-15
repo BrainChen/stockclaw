@@ -1,9 +1,19 @@
 <h1 align="center">stockclaw</h1>
 
 <p align="center">
-  <a href="./README.md">
-    <img src="https://img.shields.io/badge/%E8%AF%AD%E8%A8%80-%E4%B8%AD%E6%96%87-blue" alt="Language: Chinese" />
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" />
   </a>
+  <a href="./skills/stockclaw-open-source/SKILL.md">
+    <img src="https://img.shields.io/badge/OpenClaw-Integrated-2F80ED" alt="OpenClaw Integrated" />
+  </a>
+  <a href="./README.md">
+    <img src="https://img.shields.io/badge/Language-Chinese-blue" alt="Language: Chinese" />
+  </a>
+  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+" />
+  <img src="https://img.shields.io/badge/FastAPI-0.100%2B-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/React-18-20232A?logo=react&logoColor=61DAFB" alt="React 18" />
+  <img src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white" alt="Vite 7" />
 </p>
 
 <p align="center">
